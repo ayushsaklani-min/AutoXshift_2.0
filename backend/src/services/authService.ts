@@ -60,7 +60,7 @@ class AuthService {
 
     return jwt.sign(payload, this.jwtSecret, {
       expiresIn: this.jwtExpiry,
-    })
+    } as jwt.SignOptions)
   }
 
   verifyToken(token: string): JWTPayload | null {

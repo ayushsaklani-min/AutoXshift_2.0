@@ -1,10 +1,17 @@
+# Render Deployment Configuration for AutoXShift Backend
+# IMPORTANT: This file is configured for monorepo structure
+# The rootDir MUST be set to 'backend' for proper deployment
+
 services:
   - type: web
     name: autoxshift-backend
     env: node
-    rootDir: backend
-    buildCommand: npm install && npm run build
+    region: oregon
+    plan: free
+    rootDir: backend  # CRITICAL: Do not change this
+    buildCommand: npm ci && npm run build
     startCommand: npm start
+    healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
         value: production
@@ -14,13 +21,22 @@ services:
         sync: false
       - key: SIDESHIFT_API_KEY
         sync: false
+      - key: X_SIDESHIFT_SECRET
+        sync: false
+      - key: SIDESHIFT_AFFILIATE_ID
+        sync: false
       - key: GOOGLE_API_KEY
         sync: false
       - key: JWT_SECRET
         sync: false
+      - key: JWT_EXPIRY
+        value: 7d
       - key: FRONTEND_URL
         sync: false
       - key: REDIS_URL
         sync: false
-    healthCheckPath: /api/health
+      - key: LOG_LEVEL
+        value: INFO
+      - key: ENCRYPTION_KEY
+        sync: false
 

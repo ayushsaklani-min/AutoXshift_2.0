@@ -1,7 +1,7 @@
 import { db } from '../database/db'
 import { aiService } from './aiService'
 import { logger } from '../utils/logger'
-import { cacheService } from './cacheService'
+import { cacheService, CacheService } from './cacheService'
 
 interface PortfolioToken {
   symbol: string
@@ -68,7 +68,7 @@ class PortfolioService {
   async getAIRecommendations(tokens: PortfolioToken[]): Promise<any[]> {
     try {
       const tokenSymbols = tokens.map((t) => t.symbol)
-      const cacheKey = cacheService.keys.aiAnalysis(tokenSymbols)
+      const cacheKey = CacheService.keys.aiAnalysis(tokenSymbols)
 
       // Check cache
       const cached = await cacheService.get<any[]>(cacheKey)

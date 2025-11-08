@@ -10,7 +10,11 @@ export const metadata: Metadata = {
   description: 'Seamless token swaps on Polygon Amoy with AI optimization and automated trading strategies.',
   keywords: ['blockchain', 'defi', 'ai', 'polygon', 'sideshift', 'crypto', 'swap'],
   authors: [{ name: 'AutoXShift Team' }],
-  metadataBase: new URL(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'),
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_FRONTEND_URL || 
+    process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 
+    'http://localhost:3000'
+  ),
   openGraph: {
     title: 'AutoXShift - AI-Powered Cross-Chain Payment Router',
     description: 'Seamless token swaps on Polygon Amoy with AI optimization and automated trading strategies.',

@@ -1,44 +1,28 @@
 // CRITICAL: Load environment variables FIRST before any other imports
+// In production (Render), env vars are set directly, no .env file needed
+// Only load .env file in development
 import dotenv from 'dotenv'
 import path from 'path'
 
-// Load environment variables - try multiple paths for compatibility
-const envPath1 = path.resolve(process.cwd(), '.env') // When running: cd backend; npm run dev
-// @ts-ignore - __dirname is available in CommonJS/tsx context
-const envPath2 = typeof __dirname !== 'undefined' ? path.resolve(__dirname, '../.env') : envPath1
-const envPath3 = path.resolve(process.cwd(), '../.env') // From root
-
-// Try multiple paths in order
-let result = dotenv.config({ path: envPath1 })
-if (result.error) {
-  result = dotenv.config({ path: envPath2 })
-}
-if (result.error) {
-  result = dotenv.config({ path: envPath3 })
-}
-if (result.error) {
-  result = dotenv.config() // Fallback to default (current directory)
-}
-
-// Debug output
-if (result.error && process.env.NODE_ENV !== 'production') {
-  console.warn('⚠️ Could not load .env file', {
-    tried: [envPath1, envPath2, envPath3],
-    cwd: process.cwd(),
-    error: result.error.message
-  })
-} else if (!result.error) {
-  console.log('✅ .env file loaded successfully')
-}
-
-// Debug: Log if DATABASE_URL is loaded
-if (process.env.DATABASE_URL) {
-  console.log('✅ DATABASE_URL loaded', {
-    length: process.env.DATABASE_URL.length,
-    preview: process.env.DATABASE_URL.substring(0, 40) + '...'
-  })
+if (process.env.NODE_ENV !== 'production') {
+  // Try to load .env file in development
+  const envPath1 = path.resolve(process.cwd(), '.env')
+  const envPath2 = path.resolve(process.cwd(), '../.env')
+  
+  let result = dotenv.config({ path: envPath1 })
+  if (result.error) {
+    result = dotenv.config({ path: envPath2 })
+  }
+  if (result.error) {
+    dotenv.config() // Fallback to default
+  }
+  
+  if (!result.error) {
+    console.log('✅ .env file loaded successfully')
+  }
 } else {
-  console.warn('⚠️ DATABASE_URL not found in environment variables')
+  // In production, env vars come from Render/Vercel
+  console.log('✅ Using environment variables from platform')
 }
 
 // NOW import everything else (after .env is loaded)
@@ -59,12 +43,11 @@ import { socialRoutes } from './routes/social'
 import { errorHandler } from './middleware/errorHandler'
 import { logger } from './utils/logger'
 import { websocketService } from './services/websocketService'
-import { Database } from './database/db'
+import { db } from './database/db'
 import { securityHeaders, requestId, apiLimiter, authLimiter } from './middleware/security'
 import { monitoringService } from './utils/monitoring'
 
-// Create database instance and initialize AFTER .env is loaded
-const db = new Database()
+// Initialize database AFTER .env is loaded
 db.initialize() // Explicitly initialize after .env is loaded
 
 const app = express()
@@ -160,17 +143,33 @@ app.use(errorHandler)
 // Initialize WebSocket server
 websocketService.initialize(server)
 
-// Initialize database connection
-db.testConnection().then((connected) => {
-  if (connected) {
-    logger.info('✅ Database connection successful')
-  } else {
-    logger.warn('⚠️  Database connection failed - some features may be unavailable')
+// Initialize database connection (with retry for production)
+const initDatabase = async () => {
+  try {
+    const connected = await db.testConnection()
+    if (connected) {
+      logger.info('✅ Database connection successful')
+    } else {
+      logger.warn('⚠️  Database connection failed - some features may be unavailable')
+      // Retry after 5 seconds in production if failed
+      if (process.env.NODE_ENV === 'production') {
+        setTimeout(initDatabase, 5000)
+      }
+    }
+  } catch (error) {
+    logger.error('Database connection error:', error)
+    // Retry after 5 seconds in production
+    if (process.env.NODE_ENV === 'production') {
+      setTimeout(initDatabase, 5000)
+    }
   }
-})
+}
+
+// Start database initialization (non-blocking)
+initDatabase()
 
 // Start server (Render uses PORT env var, default to 3001 for local)
-const serverPort = process.env.PORT || 3001
+const serverPort = parseInt(process.env.PORT || '3001', 10)
 server.listen(serverPort, '0.0.0.0', () => {
   logger.info(`🚀 AutoXShift API v2.0 server running on port ${serverPort}`)
   logger.info(`📊 Health check: http://localhost:${serverPort}/api/health`)

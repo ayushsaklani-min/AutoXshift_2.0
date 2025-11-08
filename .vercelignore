@@ -1,0 +1,14 @@
+# Vercel ignore file
+backend/
+node_modules/
+.git/
+.env
+.env.local
+*.log
+.DS_Store
+docs/
+*.md
+!README.md
+docker-compose.yml
+nginx.conf
+render.yaml

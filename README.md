@@ -2,6 +2,9 @@
 
 [![Deploy to Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/ayushsaklani-min/AutoXshift_2.0)
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue)](https://www.typescriptlang.org/)
 
 > **Next-generation DeFi platform** combining AI intelligence with seamless cross-chain token swaps, portfolio management, and community-driven fundraising.
 
@@ -38,6 +41,10 @@ npm run dev
 
 ## 📦 Deployment
 
+### ⚡ Quick Deploy (15 minutes)
+
+**See [QUICK_DEPLOY.md](./QUICK_DEPLOY.md) for step-by-step instructions**
+
 ### Backend (Render)
 
 1. **Connect Repository**
@@ -46,8 +53,9 @@ npm run dev
    - Connect GitHub repository
 
 2. **Configure Service**
-   - **Build Command**: `cd backend && npm install && npm run build`
-   - **Start Command**: `cd backend && npm start`
+   - **Root Directory**: `backend` ⚠️ IMPORTANT
+   - **Build Command**: `npm ci && npm run build`
+   - **Start Command**: `npm start`
    - **Environment**: Node
 
 3. **Set Environment Variables**
@@ -68,13 +76,13 @@ npm run dev
    - Import GitHub repository
 
 2. **Configure Project**
-   - **Root Directory**: `frontend`
+   - **Root Directory**: `frontend` ⚠️ IMPORTANT
    - **Framework**: Next.js (auto-detected)
 
 3. **Set Environment Variables**
    ```
    NEXT_PUBLIC_API_URL=https://your-backend.onrender.com
-   NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID=your_project_id
+   NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your_project_id
    ```
 
 📖 **Full deployment guide**: See [DEPLOYMENT.md](./DEPLOYMENT.md)

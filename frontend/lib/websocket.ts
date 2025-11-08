@@ -1,6 +1,7 @@
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 
   (typeof window !== 'undefined' 
-    ? `ws://${window.location.hostname}:3001/ws`
+    ? API_URL.replace('http', 'ws').replace('https', 'wss') + '/ws'
     : 'ws://localhost:3001/ws')
 
 export type WebSocketMessage = 
