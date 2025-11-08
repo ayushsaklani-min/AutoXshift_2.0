@@ -1,17 +1,14 @@
 {
   "name": "autoxshift",
   "version": "1.0.0",
-  "description": "AI-Powered Cross-Chain Payment Router for Polygon Amoy",
+  "description": "AI-Powered Cross-Chain Payment Router using SideShift.ai",
   "main": "index.js",
   "scripts": {
     "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
     "dev:frontend": "cd frontend && npm run dev",
     "dev:backend": "cd backend && npm run dev",
     "build": "cd frontend && npm run build",
-    "deploy:contracts": "cd contracts && npm run deploy",
-    "test": "cd contracts && npm run test",
-    "test:gemini": "cd backend && npm run test:gemini",
-    "install:all": "npm install && cd frontend && npm install && cd ../backend && npm install && cd ../contracts && npm install"
+    "install:all": "npm install && cd frontend && npm install && cd ../backend && npm install"
   },
   "keywords": ["blockchain", "defi", "ai", "polygon", "sideshift"],
   "author": "AutoXShift Team",

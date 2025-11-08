@@ -38,17 +38,17 @@ export function Header() {
 
         {/* Navigation */}
         <nav className="hidden md:flex items-center space-x-6">
-          <a href="#swap" className="text-sm font-medium hover:text-primary transition-colors">
+          <a href="/" className="text-sm font-medium hover:text-primary transition-colors">
             Swap
           </a>
-          <a href="#ai" className="text-sm font-medium hover:text-primary transition-colors">
-            AI Analysis
+          <a href="/campaigns" className="text-sm font-medium hover:text-primary transition-colors">
+            Campaigns
           </a>
-          <a href="#wallet" className="text-sm font-medium hover:text-primary transition-colors">
-            Wallet
+          <a href="/portfolio" className="text-sm font-medium hover:text-primary transition-colors">
+            Portfolio
           </a>
-          <a href="#history" className="text-sm font-medium hover:text-primary transition-colors">
-            History
+          <a href="/analytics" className="text-sm font-medium hover:text-primary transition-colors">
+            Analytics
           </a>
         </nav>
 

@@ -40,8 +40,10 @@ class AIService {
     if (process.env.GOOGLE_API_KEY) {
       this.genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY)
       this.model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+      logger.info('Google Gemini API configured successfully')
     } else {
-      logger.warn('Google API key not found. AI features will use mock data.')
+      logger.warn('Google API key not found. AI features will not be available.')
+      logger.warn('Get your API key from: https://ai.google.dev/')
     }
   }
 
@@ -53,15 +55,15 @@ class AIService {
     toToken: string
     amount: number
   }): Promise<SwapRecommendation[]> {
+    if (!this.model) {
+      throw new Error('Google API key not configured. Please set GOOGLE_API_KEY in your .env file to use AI features.')
+    }
+
     try {
-      if (this.model) {
-        return await this.getAIRecommendations(params)
-      } else {
-        return this.getMockRecommendations(params)
-      }
+      return await this.getAIRecommendations(params)
     } catch (error) {
       logger.error('Error getting AI recommendations:', error)
-      return this.getMockRecommendations(params)
+      throw new Error(`Failed to get AI recommendations: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
@@ -69,15 +71,15 @@ class AIService {
    * Analyze market conditions using AI
    */
   async analyzeMarketConditions(tokens: string[], timeframe: string): Promise<MarketAnalysis> {
+    if (!this.model) {
+      throw new Error('Google API key not configured. Please set GOOGLE_API_KEY in your .env file to use AI features.')
+    }
+
     try {
-      if (this.model) {
-        return await this.getAIMarketAnalysis(tokens, timeframe)
-      } else {
-        return this.getMockMarketAnalysis(tokens, timeframe)
-      }
+      return await this.getAIMarketAnalysis(tokens, timeframe)
     } catch (error) {
       logger.error('Error analyzing market conditions:', error)
-      return this.getMockMarketAnalysis(tokens, timeframe)
+      throw new Error(`Failed to analyze market conditions: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
@@ -85,15 +87,15 @@ class AIService {
    * Get AI explanation of swap transaction
    */
   async explainSwap(transaction: any): Promise<string> {
+    if (!this.model) {
+      throw new Error('Google API key not configured. Please set GOOGLE_API_KEY in your .env file to use AI features.')
+    }
+
     try {
-      if (this.model) {
-        return await this.getAIExplanation(transaction)
-      } else {
-        return this.getMockExplanation(transaction)
-      }
+      return await this.getAIExplanation(transaction)
     } catch (error) {
       logger.error('Error explaining swap:', error)
-      return this.getMockExplanation(transaction)
+      throw new Error(`Failed to explain swap: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
@@ -184,7 +186,7 @@ class AIService {
       }))
     } catch (parseError) {
       logger.error('Error parsing Gemini response:', parseError)
-      return this.getMockRecommendations(params)
+      throw new Error('Failed to parse AI recommendations from Gemini API')
     }
   }
 
@@ -208,7 +210,7 @@ class AIService {
       return JSON.parse(text)
     } catch (parseError) {
       logger.error('Error parsing Gemini market analysis:', parseError)
-      return this.getMockMarketAnalysis(tokens, timeframe)
+      throw new Error('Failed to parse market analysis from Gemini API')
     }
   }
 
@@ -235,79 +237,6 @@ class AIService {
     }
   }
 
-  /**
-   * Get mock recommendations for demo purposes
-   */
-  private getMockRecommendations(params: {
-    fromToken: string
-    toToken: string
-    amount: number
-  }): SwapRecommendation[] {
-    return [
-      {
-        id: '1',
-        type: 'timing',
-        title: 'Optimal Swap Time Detected',
-        description: `Market conditions suggest the next 15 minutes will have 23% better rates for ${params.fromToken}/${params.toToken} swaps.`,
-        confidence: 87,
-        impact: 'high',
-        action: 'Execute swap now',
-        timestamp: Date.now() - 300000
-      },
-      {
-        id: '2',
-        type: 'rate',
-        title: 'Rate Optimization Available',
-        description: `Alternative routing through 3 hops could save 0.8% on your ${params.amount} ${params.fromToken} swap with minimal additional risk.`,
-        confidence: 92,
-        impact: 'medium',
-        action: 'Use optimized route',
-        timestamp: Date.now() - 600000
-      },
-      {
-        id: '3',
-        type: 'gas',
-        title: 'Gas Price Recommendation',
-        description: 'Current gas prices are 15% below average. Good time for transactions.',
-        confidence: 78,
-        impact: 'low',
-        action: 'Proceed with current gas',
-        timestamp: Date.now() - 900000
-      }
-    ]
-  }
-
-  /**
-   * Get mock market analysis for demo purposes
-   */
-  private getMockMarketAnalysis(tokens: string[], timeframe: string): MarketAnalysis {
-    return {
-      overallSentiment: 'bullish',
-      volatility: 'medium',
-      recommendations: this.getMockRecommendations({
-        fromToken: tokens[0] || 'AUTOX',
-        toToken: tokens[1] || 'SHIFT',
-        amount: 100
-      }),
-      insights: [
-        'Trading volume increased 15% in the last 24 hours',
-        'Price momentum suggests continued upward movement',
-        'Liquidity depth is healthy for large swaps'
-      ],
-      optimalTiming: {
-        bestTime: 'Next 2-4 hours',
-        confidence: 85,
-        reason: 'Market volatility is low and liquidity is high'
-      }
-    }
-  }
-
-  /**
-   * Get mock explanation for demo purposes
-   */
-  private getMockExplanation(transaction: any): string {
-    return `Your ${transaction.fromToken} to ${transaction.toToken} swap will execute at a ${transaction.rate || 1.5}x exchange rate. The ${transaction.fee || 0.3}% fee covers network costs and liquidity provider rewards. With current gas prices, your transaction should confirm within 2-3 minutes. The ${transaction.slippage || 0.5}% slippage tolerance protects against small price movements during execution.`
-  }
 }
 
 export const aiService = new AIService()

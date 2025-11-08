@@ -1,4 +1,7 @@
 import { logger } from '../utils/logger'
+import { db } from '../database/db'
+import { cacheService } from './cacheService'
+import { websocketService } from './websocketService'
 
 interface HealthStatus {
   status: 'healthy' | 'degraded' | 'unhealthy'
@@ -7,8 +10,10 @@ interface HealthStatus {
   version: string
   services: {
     database: 'up' | 'down'
+    redis: 'up' | 'down'
+    websocket: 'up' | 'down'
     sideshift: 'up' | 'down'
-    openai: 'up' | 'down'
+    googleai: 'up' | 'down'
     polygon: 'up' | 'down'
   }
   metrics: {
@@ -52,8 +57,10 @@ class HealthService {
         version: process.env.npm_package_version || '1.0.0',
         services: {
           database: 'down',
+          redis: 'down',
+          websocket: 'down',
           sideshift: 'down',
-          openai: 'down',
+          googleai: 'down',
           polygon: 'down'
         },
         metrics: {
@@ -73,7 +80,7 @@ class HealthService {
       const services = await this.checkServices()
       
       // Service is ready if critical services are up
-      const criticalServices = ['sideshift', 'polygon']
+      const criticalServices = ['database', 'sideshift']
       const criticalUp = criticalServices.every(service => services[service as keyof typeof services] === 'up')
       
       return criticalUp
@@ -87,17 +94,62 @@ class HealthService {
    * Check status of all services
    */
   private async checkServices(): Promise<HealthStatus['services']> {
-    const [sideshift, googleAI, polygon] = await Promise.allSettled([
+    const [database, redis, websocket, sideshift, googleAI, polygon] = await Promise.allSettled([
+      this.checkDatabase(),
+      this.checkRedis(),
+      this.checkWebSocket(),
       this.checkSideShiftAPI(),
       this.checkGoogleAI(),
       this.checkPolygonRPC()
     ])
 
     return {
-      database: 'up', // Mock - in real app, check actual DB
+      database: database.status === 'fulfilled' && database.value ? 'up' : 'down',
+      redis: redis.status === 'fulfilled' && redis.value ? 'up' : 'down',
+      websocket: websocket.status === 'fulfilled' && websocket.value ? 'up' : 'down',
       sideshift: sideshift.status === 'fulfilled' && sideshift.value ? 'up' : 'down',
-      openai: googleAI.status === 'fulfilled' && googleAI.value ? 'up' : 'down', // Keep same key for compatibility
+      googleai: googleAI.status === 'fulfilled' && googleAI.value ? 'up' : 'down',
       polygon: polygon.status === 'fulfilled' && polygon.value ? 'up' : 'down'
+    }
+  }
+
+  /**
+   * Check database connection
+   */
+  private async checkDatabase(): Promise<boolean> {
+    try {
+      return await db.testConnection()
+    } catch (error) {
+      logger.error('Database check failed:', error)
+      return false
+    }
+  }
+
+  /**
+   * Check Redis connection
+   */
+  private async checkRedis(): Promise<boolean> {
+    try {
+      const testKey = 'health_check_' + Date.now()
+      await cacheService.set(testKey, 'test', 10)
+      const value = await cacheService.get(testKey)
+      await cacheService.del(testKey)
+      return value === 'test'
+    } catch (error) {
+      logger.error('Redis check failed:', error)
+      return false
+    }
+  }
+
+  /**
+   * Check WebSocket server
+   */
+  private async checkWebSocket(): Promise<boolean> {
+    try {
+      return websocketService.getConnectedCount() >= 0 // Server is running if we can get count
+    } catch (error) {
+      logger.error('WebSocket check failed:', error)
+      return false
     }
   }
 

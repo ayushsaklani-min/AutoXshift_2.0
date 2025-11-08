@@ -1,248 +1,414 @@
 import axios from 'axios'
-import { ethers } from 'ethers'
 import { logger } from '../utils/logger'
 
-interface SwapQuote {
-  fromToken: string
-  toToken: string
-  amountIn: number
-  amountOut: number
-  rate: number
-  fee: number
-  minAmountOut: number
-  priceImpact: number
-  gasEstimate: string
-  validUntil: number
+// SideShift API base URL
+const SIDESHIFT_API_BASE = 'https://api.sideshift.ai/v2'
+
+// SideShift API interfaces
+interface SideShiftQuote {
+  quoteId: string
+  depositCoin: string
+  depositNetwork: string
+  settleCoin: string
+  settleNetwork: string
+  depositAmount: string
+  settleAmount: string
+  rate: string
+  fee: string
+  depositMin: string
+  depositMax: string
+  settleMin: string
+  settleMax: string
+  expiresAt: string
 }
 
-interface SwapExecution {
-  txHash: string
-  status: 'pending' | 'completed' | 'failed'
-  gasUsed: string
-  gasPrice: string
-  blockNumber: number
-  timestamp: number
+interface SideShiftShift {
+  id: string
+  type: 'fixed' | 'variable'
+  status: 'awaiting_deposit' | 'deposit_received' | 'processing' | 'complete' | 'refunded' | 'failed'
+  depositCoin: string
+  depositNetwork: string
+  settleCoin: string
+  settleNetwork: string
+  depositAmount: string
+  settleAmount: string
+  depositAddress: string
+  settleAddress: string
+  rate: string
+  fee: string
+  createdAt: string
+  updatedAt: string
+  expiresAt?: string
+  depositTxHash?: string
+  settleTxHash?: string
 }
 
-interface TokenInfo {
-  symbol: string
+interface SideShiftCoin {
+  coin: string
+  network: string
   name: string
-  address: string
+  symbol: string
+  status: 'available' | 'unavailable'
+  min: string
+  max: string
   decimals: number
-  icon: string
-  price: number
+}
+
+// Our application interfaces
+export interface SwapQuote {
+  quoteId: string
+  fromToken: string
+  fromNetwork: string
+  toToken: string
+  toNetwork: string
+  amountIn: string
+  amountOut: string
+  rate: string
+  fee: string
+  depositAddress?: string
+  expiresAt: number
+  minAmount: string
+  maxAmount: string
+}
+
+export interface ShiftStatus {
+  shiftId: string
+  status: 'awaiting_deposit' | 'deposit_received' | 'processing' | 'complete' | 'refunded' | 'failed'
+  depositCoin: string
+  depositNetwork: string
+  settleCoin: string
+  settleNetwork: string
+  depositAmount: string
+  settleAmount: string
+  depositAddress: string
+  settleAddress: string
+  depositTxHash?: string
+  settleTxHash?: string
+  createdAt: number
+  updatedAt: number
+  expiresAt?: number
+}
+
+export interface TokenInfo {
+  coin: string
+  network: string
+  name: string
+  symbol: string
+  status: 'available' | 'unavailable'
+  min: string
+  max: string
+  decimals: number
 }
 
 class SwapService {
-  private sideshiftApiKey: string
-  private rpcUrl: string
-  private provider: ethers.JsonRpcProvider
+  private sideshiftSecret: string
+  private affiliateId: string
+  private axiosInstance: any
 
   constructor() {
-    this.sideshiftApiKey = process.env.SIDESHIFT_API_KEY || ''
-    this.rpcUrl = process.env.POLYGON_AMOY_RPC_URL || 'https://rpc-amoy.polygon.technology'
-    this.provider = new ethers.JsonRpcProvider(this.rpcUrl)
+    // Check for API key in multiple possible env variable names
+    this.sideshiftSecret = process.env.SIDESHIFT_API_KEY || 
+                          process.env.X_SIDESHIFT_SECRET || 
+                          process.env.SIDESHIFT_SECRET || 
+                          ''
+    this.affiliateId = process.env.SIDESHIFT_AFFILIATE_ID || ''
+    
+    // Create axios instance with SideShift API headers
+    this.axiosInstance = axios.create({
+      baseURL: SIDESHIFT_API_BASE,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(this.sideshiftSecret && { 'x-sideshift-secret': this.sideshiftSecret })
+      },
+      timeout: 30000
+    })
+
+    if (!this.sideshiftSecret) {
+      logger.error('SideShift API secret not configured. Please set SIDESHIFT_API_KEY in your .env file.')
+      logger.error('Get your API key from: https://sideshift.ai/settings/api')
+    } else {
+      logger.info('SideShift API configured successfully')
+    }
   }
 
   /**
    * Get swap quote from SideShift API
+   * @param params Swap parameters
+   * @returns SideShift quote with deposit address
    */
   async getSwapQuote(params: {
     fromToken: string
+    fromNetwork: string
     toToken: string
-    amount: number
-    userAddress: string
+    toNetwork: string
+    amount: string
+    settleAddress: string
   }): Promise<SwapQuote> {
     try {
-      // In a real implementation, this would call the actual SideShift API
-      // For demo purposes, we'll simulate the response
-      const mockQuote = this.generateMockQuote(params)
-      
-      logger.info(`Generated quote for ${params.amount} ${params.fromToken} → ${params.toToken}`)
-      
-      return mockQuote
-    } catch (error) {
-      logger.error('Error getting swap quote:', error)
-      throw new Error('Failed to get swap quote')
-    }
-  }
-
-  /**
-   * Execute swap transaction
-   */
-  async executeSwap(params: {
-    fromToken: string
-    toToken: string
-    amount: number
-    userAddress: string
-    slippage: number
-  }): Promise<SwapExecution> {
-    try {
-      // In a real implementation, this would:
-      // 1. Call SideShift API to create swap
-      // 2. Return transaction hash for user to sign
-      // 3. Monitor transaction status
-      
-      const mockExecution = this.generateMockExecution(params)
-      
-      logger.info(`Executed swap: ${params.amount} ${params.fromToken} → ${params.toToken}`)
-      
-      return mockExecution
-    } catch (error) {
-      logger.error('Error executing swap:', error)
-      throw new Error('Failed to execute swap')
-    }
-  }
-
-  /**
-   * Get supported tokens
-   */
-  async getSupportedTokens(): Promise<TokenInfo[]> {
-    return [
-      {
-        symbol: 'AUTOX',
-        name: 'AutoX Token',
-        address: process.env.AUTOX_TOKEN_ADDRESS || '0x...',
-        decimals: 18,
-        icon: '🚀',
-        price: 0.5
-      },
-      {
-        symbol: 'SHIFT',
-        name: 'Shift Token',
-        address: process.env.SHIFT_TOKEN_ADDRESS || '0x...',
-        decimals: 18,
-        icon: '⚡',
-        price: 0.33
-      },
-      {
-        symbol: 'MATIC',
-        name: 'Polygon',
-        address: '0x0000000000000000000000000000000000001010',
-        decimals: 18,
-        icon: '💎',
-        price: 0.5
+      if (!this.sideshiftSecret) {
+        throw new Error('SideShift API secret not configured')
       }
-    ]
-  }
 
-  /**
-   * Get swap transaction status
-   */
-  async getSwapStatus(txHash: string): Promise<SwapExecution> {
-    try {
-      const tx = await this.provider.getTransaction(txHash)
-      const receipt = await this.provider.getTransactionReceipt(txHash)
-      
-      if (!tx) {
-        throw new Error('Transaction not found')
-      }
+      logger.info(`Getting quote: ${params.amount} ${params.fromToken} (${params.fromNetwork}) → ${params.toToken} (${params.toNetwork})`)
+
+      // Call SideShift API to get quote
+      const response = await this.axiosInstance.get('/quotes', {
+        params: {
+          depositCoin: params.fromToken,
+          depositNetwork: params.fromNetwork,
+          settleCoin: params.toToken,
+          settleNetwork: params.toNetwork,
+          depositAmount: params.amount,
+          affiliateId: this.affiliateId || undefined
+        }
+      })
+
+      const quote: SideShiftQuote = response.data
+
+      // Create fixed shift to get deposit address
+      const shiftResponse = await this.axiosInstance.post('/shifts/fixed', {
+        quoteId: quote.quoteId,
+        settleAddress: params.settleAddress,
+        affiliateId: this.affiliateId || undefined
+      })
+
+      const shift: SideShiftShift = shiftResponse.data
 
       return {
-        txHash,
-        status: receipt ? 'completed' : 'pending',
-        gasUsed: receipt?.gasUsed.toString() || '0',
-        gasPrice: tx.gasPrice?.toString() || '0',
-        blockNumber: receipt?.blockNumber || 0,
-        timestamp: Date.now()
+        quoteId: quote.quoteId,
+        fromToken: quote.depositCoin,
+        fromNetwork: quote.depositNetwork,
+        toToken: quote.settleCoin,
+        toNetwork: quote.settleNetwork,
+        amountIn: quote.depositAmount,
+        amountOut: quote.settleAmount,
+        rate: quote.rate,
+        fee: quote.fee,
+        depositAddress: shift.depositAddress,
+        expiresAt: new Date(quote.expiresAt).getTime(),
+        minAmount: quote.depositMin,
+        maxAmount: quote.depositMax
       }
-    } catch (error) {
-      logger.error('Error getting swap status:', error)
-      throw new Error('Failed to get swap status')
+    } catch (error: any) {
+      logger.error('Error getting SideShift quote:', error.response?.data || error.message)
+      
+      // Provide helpful error messages
+      if (error.response?.status === 400) {
+        throw new Error(error.response.data?.message || 'Invalid swap parameters')
+      } else if (error.response?.status === 401) {
+        throw new Error('Invalid SideShift API credentials')
+      } else if (error.response?.status === 404) {
+        throw new Error('Swap pair not available')
+      } else if (error.code === 'ECONNABORTED') {
+        throw new Error('Request timeout - please try again')
+      }
+      
+      throw new Error(`Failed to get swap quote: ${error.response?.data?.message || error.message}`)
     }
   }
 
   /**
-   * Get swap history for address
+   * Create a new fixed shift
+   * @param params Shift parameters
+   * @returns Created shift with deposit address
    */
-  async getSwapHistory(address: string, limit: number, offset: number): Promise<SwapExecution[]> {
+  async createShift(params: {
+    quoteId: string
+    settleAddress: string
+  }): Promise<ShiftStatus> {
     try {
-      // In a real implementation, this would query a database
-      // For demo purposes, return mock data
-      return this.generateMockHistory(address, limit, offset)
-    } catch (error) {
+      if (!this.sideshiftSecret) {
+        throw new Error('SideShift API secret not configured')
+      }
+
+      logger.info(`Creating shift with quote: ${params.quoteId}`)
+
+      const response = await this.axiosInstance.post('/shifts/fixed', {
+        quoteId: params.quoteId,
+        settleAddress: params.settleAddress,
+        affiliateId: this.affiliateId || undefined
+      })
+
+      const shift: SideShiftShift = response.data
+
+      return this.mapShiftToStatus(shift)
+    } catch (error: any) {
+      logger.error('Error creating shift:', error.response?.data || error.message)
+      throw new Error(`Failed to create shift: ${error.response?.data?.message || error.message}`)
+    }
+  }
+
+  /**
+   * Get shift status
+   * @param shiftId Shift ID
+   * @returns Current shift status
+   */
+  async getShiftStatus(shiftId: string): Promise<ShiftStatus> {
+    try {
+      if (!this.sideshiftSecret) {
+        throw new Error('SideShift API secret not configured')
+      }
+
+      const response = await this.axiosInstance.get(`/shifts/${shiftId}`)
+      const shift: SideShiftShift = response.data
+
+      return this.mapShiftToStatus(shift)
+    } catch (error: any) {
+      logger.error('Error getting shift status:', error.response?.data || error.message)
+      throw new Error(`Failed to get shift status: ${error.response?.data?.message || error.message}`)
+    }
+  }
+
+  /**
+   * Get available coins/networks from SideShift
+   * @returns List of supported tokens
+   */
+  async getSupportedTokens(): Promise<TokenInfo[]> {
+    if (!this.sideshiftSecret) {
+      throw new Error('SideShift API secret not configured. Please set SIDESHIFT_API_KEY in your .env file.')
+    }
+
+    try {
+      const response = await this.axiosInstance.get('/coins')
+      const coins: SideShiftCoin[] = response.data
+
+      if (!Array.isArray(coins)) {
+        throw new Error('Invalid response from SideShift API')
+      }
+
+      // Filter only available coins and map to our format
+      const availableCoins = coins
+        .filter(coin => coin.status === 'available')
+        .map(coin => ({
+          coin: coin.coin,
+          network: coin.network,
+          name: coin.name,
+          symbol: coin.symbol,
+          status: coin.status,
+          min: coin.min,
+          max: coin.max,
+          decimals: coin.decimals
+        }))
+
+      if (availableCoins.length === 0) {
+        throw new Error('No available tokens found from SideShift API')
+      }
+
+      return availableCoins
+    } catch (error: any) {
+      logger.error('Error getting supported tokens:', error.response?.data || error.message)
+      
+      // Throw error instead of returning fallback - we need real data
+      if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
+        throw new Error('Cannot connect to SideShift API. Please check your internet connection and API configuration.')
+      }
+      
+      throw new Error(`Failed to get supported tokens from SideShift: ${error.response?.data?.message || error.message}`)
+    }
+  }
+
+  /**
+   * Save swap to database
+   */
+  async saveSwap(userId: string, shift: ShiftStatus): Promise<void> {
+    try {
+      const { db } = await import('../database/db')
+      await db.query(
+        `INSERT INTO swaps (
+          user_id, shift_id, from_token, from_network, to_token, to_network,
+          amount_in, amount_out, rate, fee, deposit_address, settle_address,
+          status, deposit_tx_hash, settle_tx_hash
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        ON CONFLICT (shift_id) DO UPDATE SET
+          status = EXCLUDED.status,
+          deposit_tx_hash = EXCLUDED.deposit_tx_hash,
+          settle_tx_hash = EXCLUDED.settle_tx_hash,
+          updated_at = CURRENT_TIMESTAMP,
+          completed_at = CASE WHEN EXCLUDED.status = 'complete' THEN CURRENT_TIMESTAMP ELSE swaps.completed_at END`,
+        [
+          userId,
+          shift.shiftId,
+          shift.depositCoin,
+          shift.depositNetwork,
+          shift.settleCoin,
+          shift.settleNetwork,
+          shift.depositAmount,
+          shift.settleAmount,
+          parseFloat(shift.depositAmount) / parseFloat(shift.settleAmount),
+          '0', // Fee calculated separately
+          shift.depositAddress,
+          shift.settleAddress,
+          shift.status,
+          shift.depositTxHash || null,
+          shift.settleTxHash || null,
+        ]
+      )
+    } catch (error: any) {
+      logger.error('Error saving swap:', error)
+      // Don't throw - swap should still work even if DB save fails
+    }
+  }
+
+  /**
+   * Get swap history (stored shifts)
+   */
+  async getSwapHistory(userId: string, limit: number, offset: number): Promise<ShiftStatus[]> {
+    try {
+      const { db } = await import('../database/db')
+      const result = await db.query(
+        `SELECT * FROM swaps
+         WHERE user_id = $1
+         ORDER BY created_at DESC
+         LIMIT $2 OFFSET $3`,
+        [userId, limit, offset]
+      )
+
+      return result.rows.map((row) => ({
+        shiftId: row.shift_id,
+        status: row.status,
+        depositCoin: row.from_token,
+        depositNetwork: row.from_network,
+        settleCoin: row.to_token,
+        settleNetwork: row.to_network,
+        depositAmount: row.amount_in.toString(),
+        settleAmount: row.amount_out.toString(),
+        depositAddress: row.deposit_address,
+        settleAddress: row.settle_address,
+        depositTxHash: row.deposit_tx_hash,
+        settleTxHash: row.settle_tx_hash,
+        createdAt: new Date(row.created_at).getTime(),
+        updatedAt: new Date(row.updated_at).getTime(),
+        completedAt: row.completed_at ? new Date(row.completed_at).getTime() : undefined,
+      }))
+    } catch (error: any) {
       logger.error('Error getting swap history:', error)
       throw new Error('Failed to get swap history')
     }
   }
 
   /**
-   * Generate mock swap quote
+   * Map SideShift shift to our ShiftStatus format
    */
-  private generateMockQuote(params: {
-    fromToken: string
-    toToken: string
-    amount: number
-  }): SwapQuote {
-    const rate = this.getMockRate(params.fromToken, params.toToken)
-    const amountOut = params.amount * rate
-    const fee = params.amount * 0.003 // 0.3% fee
-    const priceImpact = Math.random() * 0.5 // 0-0.5% price impact
-    
+  private mapShiftToStatus(shift: SideShiftShift): ShiftStatus {
     return {
-      fromToken: params.fromToken,
-      toToken: params.toToken,
-      amountIn: params.amount,
-      amountOut,
-      rate,
-      fee,
-      minAmountOut: amountOut * 0.995, // 0.5% slippage
-      priceImpact,
-      gasEstimate: '0.001',
-      validUntil: Date.now() + 300000 // 5 minutes
+      shiftId: shift.id,
+      status: shift.status,
+      depositCoin: shift.depositCoin,
+      depositNetwork: shift.depositNetwork,
+      settleCoin: shift.settleCoin,
+      settleNetwork: shift.settleNetwork,
+      depositAmount: shift.depositAmount,
+      settleAmount: shift.settleAmount,
+      depositAddress: shift.depositAddress,
+      settleAddress: shift.settleAddress,
+      depositTxHash: shift.depositTxHash,
+      settleTxHash: shift.settleTxHash,
+      createdAt: new Date(shift.createdAt).getTime(),
+      updatedAt: new Date(shift.updatedAt).getTime(),
+      expiresAt: shift.expiresAt ? new Date(shift.expiresAt).getTime() : undefined
     }
   }
 
-  /**
-   * Generate mock swap execution
-   */
-  private generateMockExecution(params: {
-    fromToken: string
-    toToken: string
-    amount: number
-  }): SwapExecution {
-    return {
-      txHash: `0x${Math.random().toString(16).substring(2, 66)}`,
-      status: 'pending',
-      gasUsed: '21000',
-      gasPrice: '30000000000', // 30 gwei
-      blockNumber: 0,
-      timestamp: Date.now()
-    }
-  }
-
-  /**
-   * Generate mock swap history
-   */
-  private generateMockHistory(address: string, limit: number, offset: number): SwapExecution[] {
-    const history: SwapExecution[] = []
-    
-    for (let i = 0; i < Math.min(limit, 10); i++) {
-      history.push({
-        txHash: `0x${Math.random().toString(16).substring(2, 66)}`,
-        status: i < 3 ? 'completed' : 'pending',
-        gasUsed: (21000 + Math.random() * 10000).toString(),
-        gasPrice: (20000000000 + Math.random() * 20000000000).toString(),
-        blockNumber: 1000000 + i,
-        timestamp: Date.now() - (i * 300000) // 5 minutes apart
-      })
-    }
-    
-    return history
-  }
-
-  /**
-   * Get mock exchange rate
-   */
-  private getMockRate(fromToken: string, toToken: string): number {
-    const rates: { [key: string]: { [key: string]: number } } = {
-      'AUTOX': { 'SHIFT': 1.5, 'MATIC': 1.0 },
-      'SHIFT': { 'AUTOX': 0.6667, 'MATIC': 0.6667 },
-      'MATIC': { 'AUTOX': 1.0, 'SHIFT': 1.5 }
-    }
-    
-    return rates[fromToken]?.[toToken] || 1.0
-  }
 }
 
 export const swapService = new SwapService()

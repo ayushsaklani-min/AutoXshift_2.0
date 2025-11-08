@@ -1,17 +1,19 @@
-# AutoXShift – AI-Powered Cross-Chain Payment Router
+# AutoXShift v2.0 – AI-Powered Cross-Chain Financial Ecosystem
 
 ![AutoXShift Logo](https://via.placeholder.com/800x200/1a1a1a/00ff88?text=AutoXShift)
 
-> **AI-Powered Cross-Chain Payment Router** for seamless token swaps on Polygon Amoy testnet with intelligent route optimization and automated trading strategies.
+> **AI-Powered Cross-Chain Financial Ecosystem** - Complete platform for token swaps, fundraising campaigns, portfolio management, and social engagement with real-time AI optimization.
 
 ## 🚀 Features
 
 ### Core Functionality
-- **Wallet Integration**: MetaMask connection with Polygon Amoy support
-- **Token Swaps**: Seamless ERC20 token exchanges via SideShift API
-- **AI Optimization**: Smart recommendations for optimal swap timing and rates
-- **AutoX Mode**: Automated swap scheduling based on AI predictions
-- **Dashboard**: Complete wallet overview and transaction history
+- **Cross-Chain Swaps**: Seamless token swaps via SideShift.ai API (BTC, ETH, MATIC, USDC, etc.)
+- **Campaign Fundraising**: Create and manage fundraising campaigns with cross-chain donations
+- **Portfolio Management**: AI-powered portfolio analysis and rebalancing suggestions
+- **Analytics Dashboard**: Comprehensive statistics and insights
+- **Social Feed**: Share insights, view leaderboards, and engage with the community
+- **Real-Time Updates**: WebSocket-powered live notifications and status updates
+- **Multi-Network Support**: Swap between different blockchains (Bitcoin, Ethereum, Polygon, etc.)
 
 ### AI-Powered Features
 - **Smart Timing**: AI predicts optimal swap times based on market conditions
@@ -20,10 +22,11 @@
 - **Gas Efficiency**: Intelligent gas price recommendations
 
 ### Technical Highlights
-- **100% Self-Custodial**: No user data stored centrally
-- **Polygon Amoy**: Built specifically for Polygon testnet
-- **Modular Architecture**: Clean, scalable codebase
-- **API Ready**: External dApp integration via `/api/swap` endpoint
+- **SideShift API Integration**: Real cross-chain swaps using SideShift.ai infrastructure
+- **AI-Powered Recommendations**: Google Gemini analyzes market conditions for optimal timing
+- **No Slippage**: SideShift handles fixed-rate swaps automatically
+- **Self-Custodial**: Users control their funds - deposits go directly to SideShift
+- **Modular Architecture**: Clean, scalable codebase ready for production
 
 ## 🛠️ Tech Stack
 
@@ -38,48 +41,46 @@
 ### Backend
 - **Node.js** with Express
 - **TypeScript** for type safety
+- **PostgreSQL** for persistent storage
+- **Redis** for caching
+- **WebSocket** for real-time updates
 - **SideShift API** integration
-- **OpenAI API** for AI features
+- **Google Gemini** for AI features
+- **JWT** authentication
 
-### Blockchain
-- **Polygon Amoy** testnet
-- **Hardhat** for smart contract development
-- **Solidity** for contract logic
-- **Alchemy** RPC provider
+### Blockchain Integration
+- **Multi-Chain Support** via SideShift.ai (Bitcoin, Ethereum, Polygon, Arbitrum, Optimism, etc.)
+- **Wallet Integration** via Wagmi/Viem for address retrieval
 
 ### AI & Analytics
 - **Google Gemini 1.5 Flash** for recommendations
-- **Hugging Face** for additional ML models
 - **Real-time** market data analysis
+- **Portfolio optimization** algorithms
+- **Campaign analytics** and tracking
 
 ## 🏗️ Project Structure
 
 ```
 autoxshift/
 ├── frontend/                 # Next.js React application
-│   ├── app/                 # App router pages
+│   ├── app/                 # App router pages (swap, campaigns, portfolio, analytics)
 │   ├── components/          # Reusable UI components
-│   ├── lib/                 # Utilities and configurations
-│   └── styles/              # Global styles
+│   └── lib/                 # Utilities (auth, API, WebSocket)
 ├── backend/                 # Express.js API server
-│   ├── routes/              # API route handlers
-│   ├── services/            # Business logic
-│   └── utils/               # Helper functions
-├── contracts/               # Smart contracts
-│   ├── contracts/           # Solidity contracts
-│   ├── scripts/             # Deployment scripts
-│   └── test/                # Contract tests
+│   ├── routes/              # API route handlers (8 modules)
+│   ├── services/            # Business logic (12 services)
+│   ├── database/            # Database schema and connection
+│   └── middleware/          # Auth, security, validation
 └── docs/                    # Documentation
-    ├── api/                 # API documentation
-    └── contracts/           # Contract documentation
+    └── API.md               # API documentation
 ```
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 - Node.js 18+ 
-- MetaMask wallet
-- Polygon Amoy testnet tokens (get from [faucet](https://faucet.polygon.technology/))
+- MetaMask wallet (or any Web3 wallet)
+- SideShift API key (get from [SideShift.ai](https://sideshift.ai/settings/api))
 - Google API key (optional, for AI features)
 
 ### Installation
@@ -94,23 +95,27 @@ npm run install:all
 2. **Set up environment variables:**
 ```bash
 # Frontend (.env.local)
-NEXT_PUBLIC_ALCHEMY_API_KEY=your_alchemy_key
-NEXT_PUBLIC_CONTRACT_ADDRESS=deployed_contract_address
 NEXT_PUBLIC_API_URL=http://localhost:3001
 
 # Backend (.env)
-GOOGLE_API_KEY=your_google_key
-SIDESHIFT_API_KEY=your_sideshift_key
 PORT=3001
-
-# Contracts (.env)
-POLYGON_AMOY_RPC_URL=https://rpc-amoy.polygon.technology
-PRIVATE_KEY=your_private_key
+SIDESHIFT_API_KEY=your_sideshift_secret_here
+GOOGLE_API_KEY=your_google_api_key_here
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=autoxshift
+DB_USER=autoxshift
+DB_PASSWORD=autoxshift123
+REDIS_URL=redis://localhost:6379
+JWT_SECRET=your-secret-key-here
 ```
 
-3. **Deploy smart contracts:**
+3. **Initialize database (optional but recommended):**
 ```bash
-npm run deploy:contracts
+cd backend
+.\scripts\init-db.ps1  # Windows
+# OR
+./scripts/init-db.sh    # Linux/Mac
 ```
 
 4. **Start development servers:**
@@ -121,62 +126,82 @@ npm run dev
 5. **Access the application:**
 - Frontend: http://localhost:3000
 - Backend API: http://localhost:3001
+- WebSocket: ws://localhost:3001/ws
+- Health Check: http://localhost:3001/api/health
 
 ## 📱 Usage
 
 ### Basic Swap Flow
 1. **Connect Wallet**: Click "Connect Wallet" and approve MetaMask connection
-2. **Select Tokens**: Choose from/to tokens (AUTOX, SHIFT, etc.)
-3. **Enter Amount**: Input swap amount
-4. **AI Analysis**: Review AI recommendations for optimal timing
-5. **Execute Swap**: Confirm transaction and wait for confirmation
-6. **View Results**: Check transaction on PolygonScan
+2. **Select Tokens**: Choose from/to tokens (BTC, ETH, MATIC, USDC, etc.) from SideShift-supported tokens
+3. **Enter Amount**: Input swap amount (must be within min/max limits)
+4. **Get Quote**: Click "Get Quote" to receive a fixed-rate quote from SideShift
+5. **Create Shift**: Confirm to create a shift and receive deposit address
+6. **Send Funds**: Send the exact amount to the provided deposit address
+7. **Monitor Status**: Watch the swap progress in real-time
+8. **Receive Tokens**: Tokens are automatically sent to your wallet when complete
 
-### AutoX Mode
-1. **Enable AutoX**: Toggle "Smart AutoX Mode" in settings
-2. **Set Preferences**: Configure target rate and timing preferences
-3. **AI Monitoring**: System continuously monitors market conditions
-4. **Automatic Execution**: Swaps execute when optimal conditions are met
+### AI Features
+1. **Smart Timing**: AI analyzes market conditions to recommend optimal swap times
+2. **Rate Analysis**: Compare rates across different token pairs
+3. **Market Insights**: Get AI-powered analysis of market trends and volatility
+4. **Swap Explanations**: Understand your swaps with AI-generated explanations
 
 ## 🔧 API Documentation
 
-### Swap Endpoint
+### Get Swap Quote
 ```http
-POST /api/swap
+POST /api/swap/quote
 Content-Type: application/json
 
 {
-  "fromToken": "AUTOX",
-  "toToken": "SHIFT", 
-  "amount": "100",
-  "userAddress": "0x...",
-  "slippage": 0.5
+  "fromToken": "BTC",
+  "fromNetwork": "BTC",
+  "toToken": "ETH",
+  "toNetwork": "ETH",
+  "amount": "0.1",
+  "settleAddress": "0x..."
 }
+```
+
+### Create Shift
+```http
+POST /api/swap/shift
+Content-Type: application/json
+
+{
+  "quoteId": "quote-id-from-previous-request",
+  "settleAddress": "0x..."
+}
+```
+
+### Get Shift Status
+```http
+GET /api/swap/status/:shiftId
+```
+
+### Get Supported Tokens
+```http
+GET /api/swap/tokens
 ```
 
 ### AI Recommendation Endpoint
 ```http
-GET /api/ai/recommend?from=AUTOX&to=SHIFT&amount=100
+GET /api/ai/recommend?fromToken=BTC&toToken=ETH&amount=0.1
 ```
 
 ## 🧪 Testing
 
-### Smart Contracts
+### Backend API
 ```bash
-cd contracts
-npm run test
+cd backend
+npm run test:gemini  # Test Gemini AI integration
 ```
 
 ### Frontend
 ```bash
 cd frontend
-npm run test
-```
-
-### Backend
-```bash
-cd backend
-npm run test
+npm run dev  # Start development server
 ```
 
 ## 🚀 Deployment
@@ -194,17 +219,16 @@ vercel --prod
 # Deploy automatically on push
 ```
 
-### Smart Contracts (Polygon Amoy)
-```bash
-cd contracts
-npm run deploy:amoy
-```
+### Database & Infrastructure
+- **PostgreSQL**: Required for persistent storage (swaps, campaigns, analytics)
+- **Redis**: Optional but recommended for caching
+- **Docker**: Use `docker-compose up -d` for full stack deployment
 
 ## 🔒 Security
 
-- **Self-Custodial**: Users maintain full control of their funds
+- **Self-Custodial**: Users maintain full control of their funds - deposits go directly to SideShift
 - **No Data Storage**: No sensitive user data stored on servers
-- **Smart Contract Audits**: All contracts tested and verified
+- **SideShift Security**: Leverages SideShift.ai's secure infrastructure
 - **Rate Limiting**: API endpoints protected against abuse
 
 ## 🤝 Contributing

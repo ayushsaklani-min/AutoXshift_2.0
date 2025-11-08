@@ -1,25 +1,39 @@
 import express from 'express'
 import { swapService } from '../services/swapService'
-import { validateSwapRequest } from '../middleware/validation'
 import { logger } from '../utils/logger'
+import { optionalAuth, authenticate, AuthRequest } from '../middleware/auth'
+import { analyticsService } from '../services/analyticsService'
+import { websocketService } from '../services/websocketService'
 
 const router = express.Router()
 
 /**
  * @route POST /api/swap/quote
  * @desc Get swap quote from SideShift API
+ * @body { fromToken, fromNetwork, toToken, toNetwork, amount, settleAddress }
  */
-router.post('/quote', validateSwapRequest, async (req: any, res: any) => {
+router.post('/quote', async (req: any, res: any) => {
   try {
-    const { fromToken, toToken, amount, userAddress } = req.body
+    const { fromToken, fromNetwork, toToken, toNetwork, amount, settleAddress } = req.body
     
-    logger.info(`Quote request: ${amount} ${fromToken} → ${toToken}`)
+    // Validation
+    if (!fromToken || !fromNetwork || !toToken || !toNetwork || !amount || !settleAddress) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields',
+        message: 'fromToken, fromNetwork, toToken, toNetwork, amount, and settleAddress are required'
+      })
+    }
+
+    logger.info(`Quote request: ${amount} ${fromToken} (${fromNetwork}) → ${toToken} (${toNetwork})`)
     
     const quote = await swapService.getSwapQuote({
       fromToken,
+      fromNetwork,
       toToken,
-      amount: typeof amount === 'string' ? parseFloat(amount) : Number(amount),
-      userAddress
+      toNetwork,
+      amount: amount.toString(),
+      settleAddress
     })
     
     res.json({
@@ -27,52 +41,108 @@ router.post('/quote', validateSwapRequest, async (req: any, res: any) => {
       data: quote,
       timestamp: new Date().toISOString()
     })
-  } catch (error) {
+  } catch (error: any) {
     logger.error('Quote error:', error)
     res.status(500).json({
       success: false,
       error: 'Failed to get swap quote',
-      message: error instanceof Error ? error.message : 'Unknown error'
+      message: error.message || 'Unknown error'
     })
   }
 })
 
 /**
- * @route POST /api/swap/execute
- * @desc Execute swap transaction
+ * @route POST /api/swap/shift
+ * @desc Create a new fixed shift
+ * @body { quoteId, settleAddress }
  */
-router.post('/execute', validateSwapRequest, async (req: any, res: any) => {
+router.post('/shift', optionalAuth, async (req: AuthRequest, res: any) => {
   try {
-    const { fromToken, toToken, amount, userAddress, slippage } = req.body
+    const { quoteId, settleAddress } = req.body
     
-    logger.info(`Swap execution: ${amount} ${fromToken} → ${toToken}`)
+    if (!quoteId || !settleAddress) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields',
+        message: 'quoteId and settleAddress are required'
+      })
+    }
+
+    logger.info(`Creating shift with quote: ${quoteId}`)
     
-    const result = await swapService.executeSwap({
-      fromToken,
-      toToken,
-      amount: typeof amount === 'string' ? parseFloat(amount) : Number(amount),
-      userAddress,
-      slippage: slippage || 0.5
+    const shift = await swapService.createShift({
+      quoteId,
+      settleAddress
     })
+
+    // Save to database if user is authenticated
+    if (req.userId) {
+      await swapService.saveSwap(req.userId, shift)
+      
+      // Track event
+      await analyticsService.trackEvent({
+        userId: req.userId,
+        eventType: 'swap_created',
+        eventData: { shiftId: shift.shiftId },
+      })
+
+      // Send WebSocket notification
+      websocketService.sendToUser(req.userId, {
+        type: 'swap_created',
+        shift,
+      })
+    }
     
     res.json({
       success: true,
-      data: result,
+      data: shift,
       timestamp: new Date().toISOString()
     })
-  } catch (error) {
-    logger.error('Swap execution error:', error)
+  } catch (error: any) {
+    logger.error('Shift creation error:', error)
     res.status(500).json({
       success: false,
-      error: 'Failed to execute swap',
-      message: error instanceof Error ? error.message : 'Unknown error'
+      error: 'Failed to create shift',
+      message: error.message || 'Unknown error'
+    })
+  }
+})
+
+/**
+ * @route GET /api/swap/status/:shiftId
+ * @desc Get shift status
+ */
+router.get('/status/:shiftId', async (req: any, res: any) => {
+  try {
+    const { shiftId } = req.params
+    
+    if (!shiftId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing shiftId'
+      })
+    }
+
+    const status = await swapService.getShiftStatus(shiftId)
+    
+    res.json({
+      success: true,
+      data: status,
+      timestamp: new Date().toISOString()
+    })
+  } catch (error: any) {
+    logger.error('Get status error:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get shift status',
+      message: error.message || 'Unknown error'
     })
   }
 })
 
 /**
  * @route GET /api/swap/tokens
- * @desc Get supported tokens
+ * @desc Get supported tokens from SideShift
  */
 router.get('/tokens', async (req: any, res: any) => {
   try {
@@ -83,52 +153,26 @@ router.get('/tokens', async (req: any, res: any) => {
       data: tokens,
       timestamp: new Date().toISOString()
     })
-  } catch (error) {
+  } catch (error: any) {
     logger.error('Get tokens error:', error)
     res.status(500).json({
       success: false,
       error: 'Failed to get supported tokens',
-      message: error instanceof Error ? error.message : 'Unknown error'
+      message: error.message || 'Unknown error'
     })
   }
 })
 
 /**
- * @route GET /api/swap/status/:txHash
- * @desc Get swap transaction status
+ * @route GET /api/swap/history
+ * @desc Get swap history for authenticated user
  */
-router.get('/status/:txHash', async (req: any, res: any) => {
+router.get('/history', authenticate, async (req: AuthRequest, res: any) => {
   try {
-    const { txHash } = req.params
-    
-    const status = await swapService.getSwapStatus(txHash)
-    
-    res.json({
-      success: true,
-      data: status,
-      timestamp: new Date().toISOString()
-    })
-  } catch (error) {
-    logger.error('Get status error:', error)
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get swap status',
-      message: error instanceof Error ? error.message : 'Unknown error'
-    })
-  }
-})
-
-/**
- * @route GET /api/swap/history/:address
- * @desc Get swap history for address
- */
-router.get('/history/:address', async (req: any, res: any) => {
-  try {
-    const { address } = req.params
     const { limit = 50, offset = 0 } = req.query
     
     const history = await swapService.getSwapHistory(
-      address,
+      req.userId!,
       parseInt(limit as string, 10),
       parseInt(offset as string, 10)
     )
@@ -138,12 +182,12 @@ router.get('/history/:address', async (req: any, res: any) => {
       data: history,
       timestamp: new Date().toISOString()
     })
-  } catch (error) {
+  } catch (error: any) {
     logger.error('Get history error:', error)
     res.status(500).json({
       success: false,
       error: 'Failed to get swap history',
-      message: error instanceof Error ? error.message : 'Unknown error'
+      message: error.message || 'Unknown error'
     })
   }
 })

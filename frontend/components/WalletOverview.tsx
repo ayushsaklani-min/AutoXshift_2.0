@@ -28,36 +28,6 @@ interface TokenBalance {
   address: string
 }
 
-const mockTokenBalances: TokenBalance[] = [
-  {
-    symbol: 'AUTOX',
-    name: 'AutoX Token',
-    balance: '1000.0',
-    usdValue: 500.0,
-    change24h: 12.5,
-    icon: '🚀',
-    address: '0x...'
-  },
-  {
-    symbol: 'SHIFT',
-    name: 'Shift Token',
-    balance: '1500.0',
-    usdValue: 750.0,
-    change24h: -3.2,
-    icon: '⚡',
-    address: '0x...'
-  },
-  {
-    symbol: 'MATIC',
-    name: 'Polygon',
-    balance: '50.0',
-    usdValue: 25.0,
-    change24h: 5.8,
-    icon: '💎',
-    address: '0x...'
-  }
-]
-
 export function WalletOverview() {
   const { address } = useAccount()
   const [balances, setBalances] = useState<TokenBalance[]>([])
@@ -65,9 +35,10 @@ export function WalletOverview() {
   const [totalValue, setTotalValue] = useState(0)
 
   useEffect(() => {
-    // Simulate loading balances
-    setBalances(mockTokenBalances)
-    setTotalValue(mockTokenBalances.reduce((sum, token) => sum + token.usdValue, 0))
+    // Wallet balances would be fetched from blockchain or API
+    // For now, showing empty state as we don't have balance tracking
+    setBalances([])
+    setTotalValue(0)
   }, [address])
 
   const handleRefresh = async () => {
@@ -212,8 +183,17 @@ export function WalletOverview() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {balances.map((token) => (
+          {balances.length === 0 ? (
+            <div className="text-center py-12">
+              <Wallet className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <p className="text-muted-foreground">No token balances to display</p>
+              <p className="text-sm text-muted-foreground mt-2">
+                Token balances will be displayed here when available
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {balances.map((token) => (
               <div key={token.symbol} className="flex items-center justify-between p-4 rounded-lg border bg-muted/30">
                 <div className="flex items-center space-x-4">
                   <div className="text-2xl">{token.icon}</div>
@@ -237,8 +217,9 @@ export function WalletOverview() {
                   </div>
                 </div>
               </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 

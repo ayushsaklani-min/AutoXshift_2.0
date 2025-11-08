@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import { Providers } from './providers'
@@ -10,8 +10,7 @@ export const metadata: Metadata = {
   description: 'Seamless token swaps on Polygon Amoy with AI optimization and automated trading strategies.',
   keywords: ['blockchain', 'defi', 'ai', 'polygon', 'sideshift', 'crypto', 'swap'],
   authors: [{ name: 'AutoXShift Team' }],
-  viewport: 'width=device-width, initial-scale=1',
-  themeColor: '#00ff88',
+  metadataBase: new URL(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'),
   openGraph: {
     title: 'AutoXShift - AI-Powered Cross-Chain Payment Router',
     description: 'Seamless token swaps on Polygon Amoy with AI optimization and automated trading strategies.',
@@ -23,6 +22,12 @@ export const metadata: Metadata = {
     title: 'AutoXShift - AI-Powered Cross-Chain Payment Router',
     description: 'Seamless token swaps on Polygon Amoy with AI optimization and automated trading strategies.',
   },
+}
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  themeColor: '#00ff88',
 }
 
 export default function RootLayout({

@@ -32,79 +32,10 @@ interface SwapTransaction {
   gasPrice: string
   fee: string
   rate: number
-  slippage: number
 }
 
-const mockTransactions: SwapTransaction[] = [
-  {
-    id: '1',
-    fromToken: 'AUTOX',
-    toToken: 'SHIFT',
-    fromAmount: '100.0',
-    toAmount: '150.0',
-    fromIcon: '🚀',
-    toIcon: '⚡',
-    status: 'completed',
-    timestamp: Date.now() - 300000, // 5 minutes ago
-    txHash: '0x1234567890abcdef...',
-    gasUsed: '0.001',
-    gasPrice: '30',
-    fee: '0.3',
-    rate: 1.5,
-    slippage: 0.2
-  },
-  {
-    id: '2',
-    fromToken: 'SHIFT',
-    toToken: 'MATIC',
-    fromAmount: '200.0',
-    toAmount: '133.33',
-    fromIcon: '⚡',
-    toIcon: '💎',
-    status: 'pending',
-    timestamp: Date.now() - 600000, // 10 minutes ago
-    txHash: '0xabcdef1234567890...',
-    gasUsed: '0.002',
-    gasPrice: '25',
-    fee: '0.6',
-    rate: 0.6667,
-    slippage: 0.1
-  },
-  {
-    id: '3',
-    fromToken: 'AUTOX',
-    toToken: 'SHIFT',
-    fromAmount: '50.0',
-    toAmount: '75.0',
-    fromIcon: '🚀',
-    toIcon: '⚡',
-    status: 'failed',
-    timestamp: Date.now() - 900000, // 15 minutes ago
-    txHash: '0x9876543210fedcba...',
-    gasUsed: '0.001',
-    gasPrice: '35',
-    fee: '0.15',
-    rate: 1.5,
-    slippage: 0.5
-  },
-  {
-    id: '4',
-    fromToken: 'MATIC',
-    toToken: 'AUTOX',
-    fromAmount: '10.0',
-    toAmount: '20.0',
-    fromIcon: '💎',
-    toIcon: '🚀',
-    status: 'completed',
-    timestamp: Date.now() - 1800000, // 30 minutes ago
-    txHash: '0xfedcba0987654321...',
-    gasUsed: '0.0015',
-    gasPrice: '20',
-    fee: '0.2',
-    rate: 2.0,
-    slippage: 0.3
-  }
-]
+// Swap history will be fetched from API or stored in database
+// For now, showing empty state
 
 const getStatusIcon = (status: string) => {
   switch (status) {
@@ -139,8 +70,9 @@ export function SwapHistory() {
   const [isRefreshing, setIsRefreshing] = useState(false)
 
   useEffect(() => {
-    // Simulate loading transactions
-    setTransactions(mockTransactions)
+    // Swap history would be fetched from API
+    // SideShift doesn't provide user-specific history, so this would need database storage
+    setTransactions([])
   }, [])
 
   const handleRefresh = async () => {
@@ -152,7 +84,7 @@ export function SwapHistory() {
 
   const handleExport = () => {
     // In real app, this would export transaction data
-    console.log('Exporting transaction history...')
+    // TODO: Implement export functionality
   }
 
   const filteredTransactions = transactions.filter(tx => {
@@ -293,8 +225,6 @@ export function SwapHistory() {
                       </div>
                       <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
                         <span>Rate: 1 {tx.fromToken} = {tx.rate.toFixed(4)} {tx.toToken}</span>
-                        <span>•</span>
-                        <span>Slippage: {tx.slippage}%</span>
                         <span>•</span>
                         <span>{formatTimeAgo(tx.timestamp)}</span>
                       </div>

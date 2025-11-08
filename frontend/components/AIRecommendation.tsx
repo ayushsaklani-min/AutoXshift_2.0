@@ -27,48 +27,8 @@ interface AIRecommendation {
   timestamp: number
 }
 
-const mockRecommendations: AIRecommendation[] = [
-  {
-    id: '1',
-    type: 'timing',
-    title: 'Optimal Swap Time Detected',
-    description: 'Market conditions suggest the next 15 minutes will have 23% better rates for AUTOX/SHIFT swaps.',
-    confidence: 87,
-    impact: 'high',
-    action: 'Execute swap now',
-    timestamp: Date.now() - 300000
-  },
-  {
-    id: '2',
-    type: 'rate',
-    title: 'Rate Optimization Available',
-    description: 'Alternative routing through 3 hops could save 0.8% on your swap with minimal additional risk.',
-    confidence: 92,
-    impact: 'medium',
-    action: 'Use optimized route',
-    timestamp: Date.now() - 600000
-  },
-  {
-    id: '3',
-    type: 'gas',
-    title: 'Gas Price Recommendation',
-    description: 'Current gas prices are 15% below average. Good time for transactions.',
-    confidence: 78,
-    impact: 'low',
-    action: 'Proceed with current gas',
-    timestamp: Date.now() - 900000
-  },
-  {
-    id: '4',
-    type: 'risk',
-    title: 'Market Volatility Alert',
-    description: 'High volatility detected in SHIFT token. Consider reducing position size by 20%.',
-    confidence: 95,
-    impact: 'high',
-    action: 'Reduce amount',
-    timestamp: Date.now() - 1200000
-  }
-]
+// AI recommendations will be fetched from the backend API
+// No mock data - only real AI-generated recommendations
 
 const getRecommendationIcon = (type: string) => {
   switch (type) {
@@ -95,12 +55,9 @@ export function AIRecommendation() {
   const [analysisProgress, setAnalysisProgress] = useState(0)
 
   useEffect(() => {
-    // Simulate loading recommendations
-    const timer = setTimeout(() => {
-      setRecommendations(mockRecommendations)
-    }, 1000)
-
-    return () => clearTimeout(timer)
+    // AI recommendations will be fetched from backend API
+    // No mock data - only real AI-generated recommendations
+    setRecommendations([])
   }, [])
 
   const handleAnalyze = async () => {
@@ -121,8 +78,8 @@ export function AIRecommendation() {
   }
 
   const handleApplyRecommendation = (recommendation: AIRecommendation) => {
-    console.log('Applying recommendation:', recommendation)
     // In real app, this would apply the recommendation to the swap
+    // TODO: Implement recommendation application
   }
 
   return (
@@ -295,11 +252,10 @@ export function AIRecommendation() {
         <CardContent>
           <div className="space-y-4">
             <div className="p-4 rounded-lg bg-muted/50">
-              <p className="text-sm">
-                <strong>AI Assistant:</strong> "Your AUTOX to SHIFT swap will execute at a 1.5x exchange rate. 
-                The 0.3% fee covers network costs and liquidity provider rewards. 
-                With current gas prices, your transaction should confirm within 2-3 minutes. 
-                The 0.5% slippage tolerance protects against small price movements during execution."
+              <p className="text-sm text-muted-foreground">
+                <strong>AI Assistant:</strong> Select tokens and get a quote to receive an AI-powered explanation of your swap. 
+                The AI will analyze the swap details and explain the transaction in simple terms, including exchange rates, 
+                fees, and estimated completion time.
               </p>
             </div>
             <Button className="w-full" variant="outline">

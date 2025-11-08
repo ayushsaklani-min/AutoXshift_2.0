@@ -44,24 +44,7 @@ export function formatTimeAgo(timestamp: number): string {
   return `${seconds}s ago`
 }
 
-export function generateSwapId(): string {
-  return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
-}
-
-export function calculateSlippage(amount: number, slippagePercent: number): number {
-  return (amount * slippagePercent) / 100
-}
-
-export function isValidAddress(address: string): boolean {
-  return /^0x[a-fA-F0-9]{40}$/.test(address)
-}
-
 export function getExplorerUrl(txHash: string, chainId: number = 80002): string {
   const baseUrl = chainId === 80002 ? 'https://amoy.polygonscan.com' : 'https://polygonscan.com'
   return `${baseUrl}/tx/${txHash}`
-}
-
-export function getTokenExplorerUrl(address: string, chainId: number = 80002): string {
-  const baseUrl = chainId === 80002 ? 'https://amoy.polygonscan.com' : 'https://polygonscan.com'
-  return `${baseUrl}/token/${address}`
 }

@@ -1,8 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useAccount, useBalance } from 'wagmi'
-import { parseEther, formatEther } from 'viem'
+import { useState, useEffect, useCallback } from 'react'
+import { useAccount } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -13,140 +12,328 @@ import {
   TrendingUp, 
   AlertCircle,
   CheckCircle,
-  Loader2
+  Loader2,
+  Copy,
+  ExternalLink,
+  QrCode
 } from 'lucide-react'
 import { formatTokenAmount, formatUSD } from '@/lib/utils'
+import { swapApi } from '@/lib/api'
+import { wsClient } from '@/lib/websocket'
+import { authenticateWallet, getToken } from '@/lib/auth'
 
-// Mock token data - in real app, this would come from contracts
-const TOKENS = [
-  {
-    symbol: 'AUTOX',
-    name: 'AutoX Token',
-    address: process.env.NEXT_PUBLIC_AUTOX_TOKEN_ADDRESS || '0x...',
-    decimals: 18,
-    icon: '🚀'
-  },
-  {
-    symbol: 'SHIFT',
-    name: 'Shift Token', 
-    address: process.env.NEXT_PUBLIC_SHIFT_TOKEN_ADDRESS || '0x...',
-    decimals: 18,
-    icon: '⚡'
-  }
-]
+interface Token {
+  coin: string
+  network: string
+  name: string
+  symbol: string
+  status: 'available' | 'unavailable'
+  min: string
+  max: string
+  decimals: number
+}
+
+interface SwapQuote {
+  quoteId: string
+  fromToken: string
+  fromNetwork: string
+  toToken: string
+  toNetwork: string
+  amountIn: string
+  amountOut: string
+  rate: string
+  fee: string
+  depositAddress?: string
+  expiresAt: number
+  minAmount: string
+  maxAmount: string
+}
+
+interface ShiftStatus {
+  shiftId: string
+  status: 'awaiting_deposit' | 'deposit_received' | 'processing' | 'complete' | 'refunded' | 'failed'
+  depositCoin: string
+  depositNetwork: string
+  settleCoin: string
+  settleNetwork: string
+  depositAmount: string
+  settleAmount: string
+  depositAddress: string
+  settleAddress: string
+  depositTxHash?: string
+  settleTxHash?: string
+  createdAt: number
+  updatedAt: number
+  expiresAt?: number
+}
 
 export function SwapPanel() {
   const { address } = useAccount()
-  const [fromToken, setFromToken] = useState(TOKENS[0])
-  const [toToken, setToToken] = useState(TOKENS[1])
+  const [tokens, setTokens] = useState<Token[]>([])
+  const [fromToken, setFromToken] = useState<Token | null>(null)
+  const [toToken, setToToken] = useState<Token | null>(null)
   const [amount, setAmount] = useState('')
-  const [slippage, setSlippage] = useState(0.5)
-  const [isAutoXMode, setIsAutoXMode] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const [swapQuote, setSwapQuote] = useState<any>(null)
-  const [txStatus, setTxStatus] = useState<'idle' | 'pending' | 'success' | 'error'>('idle')
+  const [isLoadingQuote, setIsLoadingQuote] = useState(false)
+  const [swapQuote, setSwapQuote] = useState<SwapQuote | null>(null)
+  const [activeShift, setActiveShift] = useState<ShiftStatus | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [timeRemaining, setTimeRemaining] = useState<number>(0)
 
-  // Mock balance - in real app, use useBalance hook
-  const mockBalance = 1000
-  const mockPrice = 0.5 // Mock USD price
-
-  // Mock contract write functionality for now
-  const mockWrite = () => {
-    console.log("Mock contract write")
-    setTxStatus("pending")
-    setTimeout(() => setTxStatus("success"), 2000)
-  }
-  const hash = null
-  const error = null
-  const isConfirming = false
-  const isSuccess = txStatus === "success"
-
-  // Calculate swap quote
+  // Authenticate and setup WebSocket on mount
   useEffect(() => {
-    if (amount && parseFloat(amount) > 0) {
-      const inputAmount = parseFloat(amount)
-      const outputAmount = inputAmount * 1.5 // Mock 1.5x rate
-      const fee = inputAmount * 0.003 // 0.3% fee
-      const minOutput = outputAmount * (1 - slippage / 100)
-      
-      setSwapQuote({
-        inputAmount,
-        outputAmount,
-        fee,
-        minOutput,
-        rate: outputAmount / inputAmount,
-        priceImpact: 0.1
-      })
-    } else {
-      setSwapQuote(null)
+    if (!address) return
+
+    const setupAuthAndWebSocket = async () => {
+      try {
+        // Authenticate with wallet
+        const token = getToken()
+        if (!token && address) {
+          await authenticateWallet(address)
+        }
+
+        // Connect WebSocket
+        const currentToken = getToken()
+        if (currentToken) {
+          await wsClient.connect(currentToken)
+          
+          // Listen for swap updates
+          wsClient.onMessage((message) => {
+            if (message.type === 'broadcast' && message.channel.startsWith('swap:')) {
+              const shiftId = message.channel.replace('swap:', '')
+              if (activeShift?.shiftId === shiftId) {
+                setActiveShift(message.data.shift)
+              }
+            } else if (message.type === 'message' && message.data.type === 'swap_created') {
+              setActiveShift(message.data.shift)
+            }
+          })
+        }
+      } catch (err) {
+        console.error('Error setting up auth/websocket:', err)
+      }
     }
-  }, [amount, slippage])
 
-  const handleSwap = async () => {
-    if (!address || !swapQuote) return
+    setupAuthAndWebSocket()
 
-    setIsLoading(true)
-    setTxStatus('pending')
+    return () => {
+      // Cleanup on unmount
+    }
+  }, [address])
+
+  // Fetch supported tokens from SideShift API only
+  useEffect(() => {
+    const fetchTokens = async () => {
+      try {
+        const data = await swapApi.getTokens()
+        if (data.success && Array.isArray(data.data) && data.data.length > 0) {
+          setTokens(data.data)
+          // Set default tokens from real SideShift data
+          const btc = data.data.find((t: Token) => t.coin === 'BTC' && t.network === 'BTC')
+          const eth = data.data.find((t: Token) => t.coin === 'ETH' && t.network === 'ETH')
+          if (btc) setFromToken(btc)
+          if (eth) setToToken(eth)
+        } else {
+          setError('No tokens available from SideShift API. Please check your API configuration.')
+        }
+      } catch (err: any) {
+        console.error('Failed to fetch tokens:', err)
+        setError(`Failed to load tokens: ${err.message || 'Please check your connection and API configuration'}`)
+      }
+    }
+    fetchTokens()
+  }, [])
+
+  // Countdown timer for quote expiration
+  useEffect(() => {
+    if (!swapQuote || !swapQuote.expiresAt) return
+
+    const interval = setInterval(() => {
+      const remaining = Math.max(0, swapQuote.expiresAt - Date.now())
+      setTimeRemaining(remaining)
+      if (remaining === 0) {
+        setSwapQuote(null)
+      }
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [swapQuote])
+
+  // Subscribe to WebSocket updates for active shift
+  useEffect(() => {
+    if (!activeShift || activeShift.status === 'complete' || activeShift.status === 'failed' || activeShift.status === 'refunded') {
+      return
+    }
+
+    // Subscribe to shift updates via WebSocket
+    const channel = `swap:${activeShift.shiftId}`
+    wsClient.subscribe(channel)
+
+    // Fallback polling if WebSocket not connected
+    if (!wsClient.isConnected()) {
+      const pollStatus = async () => {
+        try {
+          const data = await swapApi.getStatus(activeShift.shiftId)
+          if (data.success) {
+            setActiveShift(data.data)
+          }
+        } catch (err) {
+          console.error('Failed to poll shift status:', err)
+        }
+      }
+
+      const interval = setInterval(pollStatus, 5000) // Poll every 5 seconds
+      return () => {
+        clearInterval(interval)
+        wsClient.unsubscribe(channel)
+      }
+    }
+
+    return () => {
+      wsClient.unsubscribe(channel)
+    }
+  }, [activeShift])
+
+  // Get quote from SideShift API
+  const getQuote = useCallback(async () => {
+    if (!fromToken || !toToken || !amount || !address) {
+      setError('Please select tokens and enter amount')
+      return
+    }
+
+    const amountNum = parseFloat(amount)
+    if (isNaN(amountNum) || amountNum <= 0) {
+      setError('Please enter a valid amount')
+      return
+    }
+
+    if (amountNum < parseFloat(fromToken.min)) {
+      setError(`Minimum amount is ${fromToken.min} ${fromToken.symbol}`)
+      return
+    }
+
+    if (amountNum > parseFloat(fromToken.max)) {
+      setError(`Maximum amount is ${fromToken.max} ${fromToken.symbol}`)
+      return
+    }
+
+    setIsLoadingQuote(true)
+    setError(null)
 
     try {
-      // Mock swap - in real app, call the swap contract
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      
-      setTxStatus('success')
-      setAmount('')
-      setSwapQuote(null)
-    } catch (err) {
-      setTxStatus('error')
-      console.error('Swap failed:', err)
+      const data = await swapApi.getQuote({
+        fromToken: fromToken.coin,
+        fromNetwork: fromToken.network,
+        toToken: toToken.coin,
+        toNetwork: toToken.network,
+        amount: amount,
+        settleAddress: address
+      })
+
+      if (data.success) {
+        setSwapQuote(data.data)
+        setActiveShift(null) // Reset active shift when new quote
+      } else {
+        setError('Failed to get quote')
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to get quote')
+    } finally {
+      setIsLoadingQuote(false)
+    }
+  }, [fromToken, toToken, amount, address])
+
+  // Create shift when user confirms
+  const createShift = async () => {
+    if (!swapQuote || !address) return
+
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const data = await swapApi.createShift({
+        quoteId: swapQuote.quoteId,
+        settleAddress: address
+      })
+
+      if (data.success) {
+        setActiveShift(data.data)
+        setSwapQuote(null) // Clear quote as shift is created
+        
+        // Subscribe to WebSocket updates for this shift
+        if (wsClient.isConnected()) {
+          wsClient.subscribe(`swap:${data.data.shiftId}`)
+        }
+      } else {
+        setError('Failed to create shift')
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to create shift')
     } finally {
       setIsLoading(false)
     }
   }
 
   const handleTokenSwitch = () => {
+    const temp = fromToken
     setFromToken(toToken)
-    setToToken(fromToken)
+    setToToken(temp)
     setAmount('')
     setSwapQuote(null)
+    setActiveShift(null)
+    setError(null)
   }
 
-  const handleMaxAmount = () => {
-    setAmount(mockBalance.toString())
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text)
+  }
+
+  const formatTime = (ms: number) => {
+    const seconds = Math.floor(ms / 1000)
+    const minutes = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${minutes}:${secs.toString().padStart(2, '0')}`
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'complete': return 'text-green-500'
+      case 'processing': return 'text-blue-500'
+      case 'awaiting_deposit': return 'text-yellow-500'
+      case 'failed': case 'refunded': return 'text-red-500'
+      default: return 'text-gray-500'
+    }
+  }
+
+  const getStatusMessage = (status: string) => {
+    switch (status) {
+      case 'awaiting_deposit': return 'Awaiting your deposit'
+      case 'deposit_received': return 'Deposit received, processing...'
+      case 'processing': return 'Processing swap...'
+      case 'complete': return 'Swap completed!'
+      case 'failed': return 'Swap failed'
+      case 'refunded': return 'Swap refunded'
+      default: return status
+    }
   }
 
   return (
     <div className="space-y-6">
       <div className="text-center space-y-2">
-        <h2 className="text-3xl font-bold">Token Swap</h2>
+        <h2 className="text-3xl font-bold">Cross-Chain Swap</h2>
         <p className="text-muted-foreground">
-          Swap tokens with AI-optimized routing and timing
+          Powered by SideShift.ai with AI-optimized timing
         </p>
       </div>
 
       <Card className="glass-effect">
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Zap className="h-5 w-5" />
-              Swap Tokens
-            </CardTitle>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">AutoX Mode</span>
-              <Button
-                variant={isAutoXMode ? "default" : "outline"}
-                size="sm"
-                onClick={() => setIsAutoXMode(!isAutoXMode)}
-                className={isAutoXMode ? "neon-glow" : ""}
-              >
-                {isAutoXMode ? "ON" : "OFF"}
-              </Button>
-            </div>
-          </div>
+          <CardTitle className="flex items-center gap-2">
+            <Zap className="h-5 w-5" />
+            Swap Tokens
+          </CardTitle>
           <CardDescription>
-            {isAutoXMode 
-              ? "AI will automatically execute swaps at optimal times"
-              : "Manual swap execution with AI recommendations"
-            }
+            Select tokens and amount to get a quote from SideShift
           </CardDescription>
         </CardHeader>
         
@@ -156,19 +343,28 @@ export function SwapPanel() {
             <label className="text-sm font-medium">From</label>
             <div className="flex items-center space-x-3 p-4 rounded-lg border bg-muted/50">
               <div className="flex items-center space-x-3 flex-1">
-                <div className="text-2xl">{fromToken.icon}</div>
-                <div>
-                  <p className="font-semibold">{fromToken.symbol}</p>
-                  <p className="text-sm text-muted-foreground">{fromToken.name}</p>
+                <div className="text-2xl">
+                  {fromToken?.symbol === 'BTC' ? '₿' : fromToken?.symbol === 'ETH' ? 'Ξ' : '💎'}
                 </div>
-              </div>
-              <div className="text-right">
-                <p className="text-sm text-muted-foreground">
-                  Balance: {formatTokenAmount(mockBalance)}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  ≈ {formatUSD(mockBalance * mockPrice)}
-                </p>
+                <div className="flex-1">
+                  <select
+                    value={fromToken ? `${fromToken.coin}-${fromToken.network}` : ''}
+                    onChange={(e) => {
+                      const [coin, network] = e.target.value.split('-')
+                      const token = tokens.find(t => t.coin === coin && t.network === network)
+                      if (token) setFromToken(token)
+                    }}
+                    className="w-full bg-transparent border-none outline-none font-semibold"
+                  >
+                    <option value="">Select token</option>
+                    {tokens.map(token => (
+                      <option key={`${token.coin}-${token.network}`} value={`${token.coin}-${token.network}`}>
+                        {token.symbol} ({token.network})
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-sm text-muted-foreground">{fromToken?.name}</p>
+                </div>
               </div>
             </div>
             <div className="flex space-x-2">
@@ -176,13 +372,25 @@ export function SwapPanel() {
                 type="number"
                 placeholder="0.0"
                 value={amount}
-                onChange={(e) => setAmount(e.target.value)}
+                onChange={(e) => {
+                  setAmount(e.target.value)
+                  setSwapQuote(null)
+                  setError(null)
+                }}
                 className="flex-1"
+                step="any"
               />
-              <Button variant="outline" onClick={handleMaxAmount}>
-                MAX
-              </Button>
+              {fromToken && (
+                <Button variant="outline" onClick={() => setAmount(fromToken.max)}>
+                  MAX
+                </Button>
+              )}
             </div>
+            {fromToken && (
+              <p className="text-xs text-muted-foreground">
+                Min: {fromToken.min} {fromToken.symbol} | Max: {fromToken.max} {fromToken.symbol}
+              </p>
+            )}
           </div>
 
           {/* Swap Button */}
@@ -202,123 +410,201 @@ export function SwapPanel() {
             <label className="text-sm font-medium">To</label>
             <div className="flex items-center space-x-3 p-4 rounded-lg border bg-muted/50">
               <div className="flex items-center space-x-3 flex-1">
-                <div className="text-2xl">{toToken.icon}</div>
-                <div>
-                  <p className="font-semibold">{toToken.symbol}</p>
-                  <p className="text-sm text-muted-foreground">{toToken.name}</p>
+                <div className="text-2xl">
+                  {toToken?.symbol === 'BTC' ? '₿' : toToken?.symbol === 'ETH' ? 'Ξ' : '💎'}
+                </div>
+                <div className="flex-1">
+                  <select
+                    value={toToken ? `${toToken.coin}-${toToken.network}` : ''}
+                    onChange={(e) => {
+                      const [coin, network] = e.target.value.split('-')
+                      const token = tokens.find(t => t.coin === coin && t.network === network)
+                      if (token) setToToken(token)
+                    }}
+                    className="w-full bg-transparent border-none outline-none font-semibold"
+                  >
+                    <option value="">Select token</option>
+                    {tokens.map(token => (
+                      <option key={`${token.coin}-${token.network}`} value={`${token.coin}-${token.network}`}>
+                        {token.symbol} ({token.network})
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-sm text-muted-foreground">{toToken?.name}</p>
                 </div>
               </div>
               <div className="text-right">
                 <p className="font-semibold">
-                  {swapQuote ? formatTokenAmount(swapQuote.outputAmount) : '0.0'}
+                  {swapQuote ? formatTokenAmount(parseFloat(swapQuote.amountOut)) : '0.0'}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  ≈ {swapQuote ? formatUSD(swapQuote.outputAmount * mockPrice) : '$0.00'}
+                  {swapQuote ? `Rate: 1 ${fromToken?.symbol} = ${parseFloat(swapQuote.rate).toFixed(6)} ${toToken?.symbol}` : ''}
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Swap Quote */}
-          {swapQuote && (
-            <div className="space-y-3 p-4 rounded-lg border bg-muted/30">
-              <h4 className="font-semibold flex items-center gap-2">
-                <TrendingUp className="h-4 w-4" />
-                Swap Details
-              </h4>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Rate</span>
-                  <span>1 {fromToken.symbol} = {swapQuote.rate.toFixed(4)} {toToken.symbol}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Fee</span>
-                  <span>{formatTokenAmount(swapQuote.fee)} {fromToken.symbol}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Price Impact</span>
-                  <span className="text-green-500">{swapQuote.priceImpact}%</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Minimum Received</span>
-                  <span>{formatTokenAmount(swapQuote.minOutput)} {toToken.symbol}</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Slippage Settings */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Slippage Tolerance</label>
-            <div className="flex space-x-2">
-              {[0.1, 0.5, 1.0].map((value) => (
-                <Button
-                  key={value}
-                  variant={slippage === value ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setSlippage(value)}
-                >
-                  {value}%
-                </Button>
-              ))}
-              <Input
-                type="number"
-                placeholder="Custom"
-                value={slippage}
-                onChange={(e) => setSlippage(parseFloat(e.target.value) || 0)}
-                className="w-20"
-                step="0.1"
-                min="0"
-                max="50"
-              />
-            </div>
-          </div>
-
-          {/* Execute Swap Button */}
-          <Button
-            onClick={handleSwap}
-            disabled={!amount || !swapQuote || isLoading || isConfirming}
-            className="w-full h-12 text-lg font-semibold neon-glow"
-          >
-            {isLoading || isConfirming ? (
-              <>
-                <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                {isConfirming ? 'Confirming...' : 'Processing...'}
-              </>
-            ) : txStatus === 'success' ? (
-              <>
-                <CheckCircle className="h-5 w-5 mr-2" />
-                Swap Successful!
-              </>
-            ) : txStatus === 'error' ? (
-              <>
-                <AlertCircle className="h-5 w-5 mr-2" />
-                Swap Failed
-              </>
-            ) : (
-              <>
-                <Zap className="h-5 w-5 mr-2" />
-                {isAutoXMode ? 'Enable AutoX Mode' : 'Swap Tokens'}
-              </>
-            )}
-          </Button>
-
-          {/* Transaction Status */}
-          {txStatus === 'success' && (
-            <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
-              <p className="text-sm text-green-500 flex items-center gap-2">
-                <CheckCircle className="h-4 w-4" />
-                Transaction confirmed! View on PolygonScan
-              </p>
-            </div>
-          )}
-
-          {txStatus === 'error' && (
+          {/* Error Message */}
+          {error && (
             <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20">
               <p className="text-sm text-red-500 flex items-center gap-2">
                 <AlertCircle className="h-4 w-4" />
-                Transaction failed. Please try again.
+                {error}
               </p>
+            </div>
+          )}
+
+          {/* Get Quote Button */}
+          {!swapQuote && !activeShift && (
+            <Button
+              onClick={getQuote}
+              disabled={!fromToken || !toToken || !amount || isLoadingQuote || !address}
+              className="w-full h-12 text-lg font-semibold neon-glow"
+            >
+              {isLoadingQuote ? (
+                <>
+                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                  Getting Quote...
+                </>
+              ) : (
+                <>
+                  <TrendingUp className="h-5 w-5 mr-2" />
+                  Get Quote
+                </>
+              )}
+            </Button>
+          )}
+
+          {/* Swap Quote Display */}
+          {swapQuote && !activeShift && (
+            <div className="space-y-4 p-4 rounded-lg border bg-muted/30">
+              <div className="flex items-center justify-between">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4" />
+                  Swap Quote
+                </h4>
+                {timeRemaining > 0 && (
+                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                    <Clock className="h-4 w-4" />
+                    {formatTime(timeRemaining)}
+                  </div>
+                )}
+              </div>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">You send</span>
+                  <span>{formatTokenAmount(parseFloat(swapQuote.amountIn))} {swapQuote.fromToken}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">You receive</span>
+                  <span className="font-semibold">{formatTokenAmount(parseFloat(swapQuote.amountOut))} {swapQuote.toToken}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Fee</span>
+                  <span>{formatTokenAmount(parseFloat(swapQuote.fee))} {swapQuote.fromToken}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Rate</span>
+                  <span>1 {swapQuote.fromToken} = {parseFloat(swapQuote.rate).toFixed(6)} {swapQuote.toToken}</span>
+                </div>
+              </div>
+              <Button
+                onClick={createShift}
+                disabled={isLoading || timeRemaining === 0}
+                className="w-full h-12 text-lg font-semibold neon-glow"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                    Creating Shift...
+                  </>
+                ) : (
+                  <>
+                    <Zap className="h-5 w-5 mr-2" />
+                    Create Shift
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
+
+          {/* Active Shift Display */}
+          {activeShift && (
+            <div className="space-y-4 p-4 rounded-lg border bg-muted/30">
+              <div className="flex items-center justify-between">
+                <h4 className="font-semibold">Shift Status</h4>
+                <span className={`text-sm font-semibold ${getStatusColor(activeShift.status)}`}>
+                  {getStatusMessage(activeShift.status)}
+                </span>
+              </div>
+
+              {activeShift.status === 'awaiting_deposit' && (
+                <div className="space-y-3">
+                  <div className="p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+                    <p className="text-sm text-yellow-600 mb-2 font-medium">
+                      Send exactly {formatTokenAmount(parseFloat(activeShift.depositAmount))} {activeShift.depositCoin} to:
+                    </p>
+                    <div className="flex items-center gap-2 p-2 bg-background rounded border">
+                      <code className="flex-1 text-xs break-all">{activeShift.depositAddress}</code>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => copyToClipboard(activeShift.depositAddress)}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    {activeShift.expiresAt && (
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Expires in: {formatTime(activeShift.expiresAt - Date.now())}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {activeShift.status === 'complete' && (
+                <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/20">
+                  <p className="text-sm text-green-600 mb-2 flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4" />
+                    Swap completed successfully!
+                  </p>
+                  {activeShift.settleTxHash && (
+                    <a
+                      href={`https://explorer.sideshift.ai/tx/${activeShift.settleTxHash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-primary hover:underline flex items-center gap-1"
+                    >
+                      View transaction <ExternalLink className="h-3 w-3" />
+                    </a>
+                  )}
+                </div>
+              )}
+
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Deposit</span>
+                  <span>{formatTokenAmount(parseFloat(activeShift.depositAmount))} {activeShift.depositCoin}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Receive</span>
+                  <span className="font-semibold">{formatTokenAmount(parseFloat(activeShift.settleAmount))} {activeShift.settleCoin}</span>
+                </div>
+                {activeShift.depositTxHash && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Deposit TX</span>
+                    <a
+                      href={`https://explorer.sideshift.ai/tx/${activeShift.depositTxHash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-primary hover:underline flex items-center gap-1"
+                    >
+                      View <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </CardContent>

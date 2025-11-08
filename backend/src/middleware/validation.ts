@@ -4,10 +4,11 @@ import { createError } from './errorHandler'
 // Validation schemas
 const swapRequestSchema = Joi.object({
   fromToken: Joi.string().required().min(1).max(50),
+  fromNetwork: Joi.string().required().min(1).max(50),
   toToken: Joi.string().required().min(1).max(50),
-  amount: Joi.number().required().positive(),
-  userAddress: Joi.string().required().pattern(/^0x[a-fA-F0-9]{40}$/),
-  slippage: Joi.number().optional().min(0).max(50)
+  toNetwork: Joi.string().required().min(1).max(50),
+  amount: Joi.string().required(), // SideShift uses string amounts
+  settleAddress: Joi.string().required().min(1) // Can be any address format (BTC, ETH, etc.)
 })
 
 const aiAnalysisSchema = Joi.object({
@@ -18,7 +19,6 @@ const aiAnalysisSchema = Joi.object({
 const autoXConfigSchema = Joi.object({
   enabled: Joi.boolean().required(),
   targetRate: Joi.number().optional().positive(),
-  maxSlippage: Joi.number().optional().min(0).max(50),
   gasThreshold: Joi.number().optional().positive(),
   checkInterval: Joi.number().optional().min(60000).max(3600000) // 1 min to 1 hour
 })
@@ -66,29 +66,9 @@ export const validateAutoXConfig = (req: any, res: any, next: any): void => {
 }
 
 /**
- * Validate Ethereum address
+ * Validate network name (for SideShift)
  */
-export const validateAddress = (address: string): boolean => {
-  return /^0x[a-fA-F0-9]{40}$/.test(address)
-}
-
-/**
- * Validate transaction hash
- */
-export const validateTxHash = (txHash: string): boolean => {
-  return /^0x[a-fA-F0-9]{64}$/.test(txHash)
-}
-
-/**
- * Validate token amount
- */
-export const validateAmount = (amount: number): boolean => {
-  return amount > 0 && amount < Number.MAX_SAFE_INTEGER
-}
-
-/**
- * Validate slippage percentage
- */
-export const validateSlippage = (slippage: number): boolean => {
-  return slippage >= 0 && slippage <= 50
+export const validateNetwork = (network: string): boolean => {
+  const validNetworks = ['BTC', 'ETH', 'POLYGON', 'BSC', 'AVALANCHE', 'ARBITRUM', 'OPTIMISM']
+  return validNetworks.includes(network.toUpperCase())
 }

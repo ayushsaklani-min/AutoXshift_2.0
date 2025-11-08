@@ -10,10 +10,6 @@ services:
       - "3000:3000"
     environment:
       - NEXT_PUBLIC_API_URL=http://backend:3001
-      - NEXT_PUBLIC_ALCHEMY_API_KEY=${ALCHEMY_API_KEY}
-      - NEXT_PUBLIC_AUTOX_TOKEN_ADDRESS=${AUTOX_TOKEN_ADDRESS}
-      - NEXT_PUBLIC_SHIFT_TOKEN_ADDRESS=${SHIFT_TOKEN_ADDRESS}
-      - NEXT_PUBLIC_SWAP_CONTRACT_ADDRESS=${SWAP_CONTRACT_ADDRESS}
     depends_on:
       - backend
     networks:
@@ -30,17 +26,23 @@ services:
       - NODE_ENV=production
       - PORT=3001
       - FRONTEND_URL=http://frontend:3000
-      - POLYGON_AMOY_RPC_URL=${POLYGON_AMOY_RPC_URL}
-      - ALCHEMY_API_KEY=${ALCHEMY_API_KEY}
-      - AUTOX_TOKEN_ADDRESS=${AUTOX_TOKEN_ADDRESS}
-      - SHIFT_TOKEN_ADDRESS=${SHIFT_TOKEN_ADDRESS}
-      - SWAP_CONTRACT_ADDRESS=${SWAP_CONTRACT_ADDRESS}
       - SIDESHIFT_API_KEY=${SIDESHIFT_API_KEY}
+      - SIDESHIFT_AFFILIATE_ID=${SIDESHIFT_AFFILIATE_ID}
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - DB_HOST=database
+      - DB_PORT=5432
+      - DB_NAME=autoxshift
+      - DB_USER=autoxshift
+      - DB_PASSWORD=autoxshift123
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
+    depends_on:
+      - database
+      - redis
     networks:
       - autoxshift
 
-  # PostgreSQL Database (optional)
+  # PostgreSQL Database
   database:
     image: postgres:15-alpine
     environment:
@@ -49,18 +51,29 @@ services:
       - POSTGRES_PASSWORD=autoxshift123
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./backend/src/database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
     ports:
       - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U autoxshift"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - autoxshift
 
-  # Redis Cache (optional)
+  # Redis Cache
   redis:
     image: redis:7-alpine
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - autoxshift
 

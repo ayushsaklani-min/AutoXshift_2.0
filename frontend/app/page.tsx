@@ -10,7 +10,8 @@ import { SwapHistory } from '@/components/SwapHistory'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Wallet, Zap, BarChart3, History } from 'lucide-react'
+import { Wallet, Zap, BarChart3, History, PieChart } from 'lucide-react'
+import Link from 'next/link'
 
 export default function Home() {
   const { address, isConnected } = useAccount()
@@ -30,7 +31,7 @@ export default function Home() {
               AI-Powered Cross-Chain Payment Router
             </p>
             <p className="text-lg text-muted-foreground animate-fade-in">
-              Seamless token swaps on Polygon Mumbai with intelligent optimization
+              Seamless cross-chain token swaps with AI-powered optimization
             </p>
           </div>
           
@@ -41,7 +42,7 @@ export default function Home() {
                 Connect Your Wallet
               </CardTitle>
               <CardDescription>
-                Connect to Polygon Mumbai testnet to start swapping tokens
+                Connect your wallet to start swapping tokens across multiple blockchains
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -56,16 +57,7 @@ export default function Home() {
                 </Button>
               ))}
               <p className="text-sm text-muted-foreground text-center">
-                Don't have Polygon Mumbai tokens? 
-                <br />
-                <a 
-                  href="https://faucet.polygon.technology/" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-primary hover:underline"
-                >
-                  Get test tokens here
-                </a>
+                Supported networks: Bitcoin, Ethereum, Polygon, Arbitrum, Optimism, and more
               </p>
             </CardContent>
           </Card>
@@ -141,6 +133,32 @@ export default function Home() {
                   <span className="text-muted-foreground">Status</span>
                   <span className="text-green-500 font-semibold">Connected</span>
                 </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="glass-effect">
+              <CardHeader>
+                <CardTitle className="text-lg">Quick Links</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <Link href="/campaigns">
+                  <Button variant="outline" className="w-full justify-start">
+                    <BarChart3 className="h-4 w-4 mr-2" />
+                    Campaigns
+                  </Button>
+                </Link>
+                <Link href="/portfolio">
+                  <Button variant="outline" className="w-full justify-start">
+                    <PieChart className="h-4 w-4 mr-2" />
+                    Portfolio
+                  </Button>
+                </Link>
+                <Link href="/analytics">
+                  <Button variant="outline" className="w-full justify-start">
+                    <BarChart3 className="h-4 w-4 mr-2" />
+                    Analytics
+                  </Button>
+                </Link>
               </CardContent>
             </Card>
             
