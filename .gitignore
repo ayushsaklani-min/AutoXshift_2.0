@@ -58,3 +58,7 @@ temp/
 # Misc
 .cache/
 .parcel-cache/
+
+# Vercel (not using)
+vercel.json
+.vercel/
