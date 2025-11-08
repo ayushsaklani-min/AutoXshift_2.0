@@ -169,17 +169,18 @@ db.testConnection().then((connected) => {
   }
 })
 
-// Start server
-server.listen(PORT, () => {
-  logger.info(`🚀 AutoXShift API v2.0 server running on port ${PORT}`)
-  logger.info(`📊 Health check: http://localhost:${PORT}/api/health`)
-  logger.info(`🔄 Swap API: http://localhost:${PORT}/api/swap`)
-  logger.info(`🤖 AI API: http://localhost:${PORT}/api/ai`)
-  logger.info(`🎯 Campaigns API: http://localhost:${PORT}/api/campaigns`)
-  logger.info(`📈 Analytics API: http://localhost:${PORT}/api/analytics`)
-  logger.info(`🔔 Notifications API: http://localhost:${PORT}/api/notifications`)
-  logger.info(`👥 Social API: http://localhost:${PORT}/api/social`)
-  logger.info(`🔌 WebSocket: ws://localhost:${PORT}/ws`)
+// Start server (Render uses PORT env var, default to 3001 for local)
+const serverPort = process.env.PORT || 3001
+server.listen(serverPort, '0.0.0.0', () => {
+  logger.info(`🚀 AutoXShift API v2.0 server running on port ${serverPort}`)
+  logger.info(`📊 Health check: http://localhost:${serverPort}/api/health`)
+  logger.info(`🔄 Swap API: http://localhost:${serverPort}/api/swap`)
+  logger.info(`🤖 AI API: http://localhost:${serverPort}/api/ai`)
+  logger.info(`🎯 Campaigns API: http://localhost:${serverPort}/api/campaigns`)
+  logger.info(`📈 Analytics API: http://localhost:${serverPort}/api/analytics`)
+  logger.info(`🔔 Notifications API: http://localhost:${serverPort}/api/notifications`)
+  logger.info(`👥 Social API: http://localhost:${serverPort}/api/social`)
+  logger.info(`🔌 WebSocket: ws://localhost:${serverPort}/ws`)
 })
 
 // Graceful shutdown

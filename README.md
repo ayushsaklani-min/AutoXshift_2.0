@@ -1,263 +1,239 @@
-# AutoXShift v2.0 – AI-Powered Cross-Chain Financial Ecosystem
+# AutoXShift v2.0 - AI-Powered Cross-Chain Financial Ecosystem
 
-![AutoXShift Logo](https://via.placeholder.com/800x200/1a1a1a/00ff88?text=AutoXShift)
+[![Deploy to Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/ayushsaklani-min/AutoXshift_2.0)
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy)
 
-> **AI-Powered Cross-Chain Financial Ecosystem** - Complete platform for token swaps, fundraising campaigns, portfolio management, and social engagement with real-time AI optimization.
-
-## 🚀 Features
-
-### Core Functionality
-- **Cross-Chain Swaps**: Seamless token swaps via SideShift.ai API (BTC, ETH, MATIC, USDC, etc.)
-- **Campaign Fundraising**: Create and manage fundraising campaigns with cross-chain donations
-- **Portfolio Management**: AI-powered portfolio analysis and rebalancing suggestions
-- **Analytics Dashboard**: Comprehensive statistics and insights
-- **Social Feed**: Share insights, view leaderboards, and engage with the community
-- **Real-Time Updates**: WebSocket-powered live notifications and status updates
-- **Multi-Network Support**: Swap between different blockchains (Bitcoin, Ethereum, Polygon, etc.)
-
-### AI-Powered Features
-- **Smart Timing**: AI predicts optimal swap times based on market conditions
-- **Rate Optimization**: Real-time analysis for best exchange rates
-- **Explain My Swap**: AI chatbot explaining transaction details in simple terms
-- **Gas Efficiency**: Intelligent gas price recommendations
-
-### Technical Highlights
-- **SideShift API Integration**: Real cross-chain swaps using SideShift.ai infrastructure
-- **AI-Powered Recommendations**: Google Gemini analyzes market conditions for optimal timing
-- **No Slippage**: SideShift handles fixed-rate swaps automatically
-- **Self-Custodial**: Users control their funds - deposits go directly to SideShift
-- **Modular Architecture**: Clean, scalable codebase ready for production
-
-## 🛠️ Tech Stack
-
-### Frontend
-- **Next.js 14** with App Router
-- **React 18** with TypeScript
-- **TailwindCSS** for styling
-- **ShadCN UI** components
-- **Wagmi** for wallet integration
-- **Ethers.js** for blockchain interactions
-
-### Backend
-- **Node.js** with Express
-- **TypeScript** for type safety
-- **PostgreSQL** for persistent storage
-- **Redis** for caching
-- **WebSocket** for real-time updates
-- **SideShift API** integration
-- **Google Gemini** for AI features
-- **JWT** authentication
-
-### Blockchain Integration
-- **Multi-Chain Support** via SideShift.ai (Bitcoin, Ethereum, Polygon, Arbitrum, Optimism, etc.)
-- **Wallet Integration** via Wagmi/Viem for address retrieval
-
-### AI & Analytics
-- **Google Gemini 1.5 Flash** for recommendations
-- **Real-time** market data analysis
-- **Portfolio optimization** algorithms
-- **Campaign analytics** and tracking
-
-## 🏗️ Project Structure
-
-```
-autoxshift/
-├── frontend/                 # Next.js React application
-│   ├── app/                 # App router pages (swap, campaigns, portfolio, analytics)
-│   ├── components/          # Reusable UI components
-│   └── lib/                 # Utilities (auth, API, WebSocket)
-├── backend/                 # Express.js API server
-│   ├── routes/              # API route handlers (8 modules)
-│   ├── services/            # Business logic (12 services)
-│   ├── database/            # Database schema and connection
-│   └── middleware/          # Auth, security, validation
-└── docs/                    # Documentation
-    └── API.md               # API documentation
-```
+> **Next-generation DeFi platform** combining AI intelligence with seamless cross-chain token swaps, portfolio management, and community-driven fundraising.
 
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Node.js 18+ 
-- MetaMask wallet (or any Web3 wallet)
-- SideShift API key (get from [SideShift.ai](https://sideshift.ai/settings/api))
-- Google API key (optional, for AI features)
+- Node.js 18+
+- PostgreSQL (Supabase recommended)
+- SideShift.ai API key
+- Google Gemini API key
 
-### Installation
+### Local Development
 
-1. **Clone and install dependencies:**
 ```bash
-git clone <repository-url>
-cd autoxshift
+# Clone repository
+git clone https://github.com/ayushsaklani-min/AutoXshift_2.0.git
+cd AutoXshift_2.0
+
+# Install dependencies
 npm run install:all
-```
 
-2. **Set up environment variables:**
-```bash
-# Frontend (.env.local)
-NEXT_PUBLIC_API_URL=http://localhost:3001
+# Setup environment variables
+cp backend/env.example backend/.env
+cp frontend/env.local.example frontend/.env.local
 
-# Backend (.env)
-PORT=3001
-SIDESHIFT_API_KEY=your_sideshift_secret_here
-GOOGLE_API_KEY=your_google_api_key_here
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=autoxshift
-DB_USER=autoxshift
-DB_PASSWORD=autoxshift123
-REDIS_URL=redis://localhost:6379
-JWT_SECRET=your-secret-key-here
-```
+# Configure your .env files with API keys
 
-3. **Initialize database (optional but recommended):**
-```bash
-cd backend
-.\scripts\init-db.ps1  # Windows
-# OR
-./scripts/init-db.sh    # Linux/Mac
-```
-
-4. **Start development servers:**
-```bash
+# Start development servers
 npm run dev
 ```
 
-5. **Access the application:**
 - Frontend: http://localhost:3000
-- Backend API: http://localhost:3001
-- WebSocket: ws://localhost:3001/ws
-- Health Check: http://localhost:3001/api/health
+- Backend: http://localhost:3001
 
-## 📱 Usage
+## 📦 Deployment
 
-### Basic Swap Flow
-1. **Connect Wallet**: Click "Connect Wallet" and approve MetaMask connection
-2. **Select Tokens**: Choose from/to tokens (BTC, ETH, MATIC, USDC, etc.) from SideShift-supported tokens
-3. **Enter Amount**: Input swap amount (must be within min/max limits)
-4. **Get Quote**: Click "Get Quote" to receive a fixed-rate quote from SideShift
-5. **Create Shift**: Confirm to create a shift and receive deposit address
-6. **Send Funds**: Send the exact amount to the provided deposit address
-7. **Monitor Status**: Watch the swap progress in real-time
-8. **Receive Tokens**: Tokens are automatically sent to your wallet when complete
+### Backend (Render)
 
-### AI Features
-1. **Smart Timing**: AI analyzes market conditions to recommend optimal swap times
-2. **Rate Analysis**: Compare rates across different token pairs
-3. **Market Insights**: Get AI-powered analysis of market trends and volatility
-4. **Swap Explanations**: Understand your swaps with AI-generated explanations
+1. **Connect Repository**
+   - Go to [Render Dashboard](https://dashboard.render.com)
+   - New → Web Service
+   - Connect GitHub repository
 
-## 🔧 API Documentation
+2. **Configure Service**
+   - **Build Command**: `cd backend && npm install && npm run build`
+   - **Start Command**: `cd backend && npm start`
+   - **Environment**: Node
 
-### Get Swap Quote
-```http
+3. **Set Environment Variables**
+   ```
+   NODE_ENV=production
+   PORT=10000
+   DATABASE_URL=your_supabase_connection_string
+   SIDESHIFT_API_KEY=your_key
+   GOOGLE_API_KEY=your_key
+   JWT_SECRET=your_secret
+   FRONTEND_URL=https://your-app.vercel.app
+   ```
+
+### Frontend (Vercel)
+
+1. **Connect Repository**
+   - Go to [Vercel Dashboard](https://vercel.com/dashboard)
+   - Import GitHub repository
+
+2. **Configure Project**
+   - **Root Directory**: `frontend`
+   - **Framework**: Next.js (auto-detected)
+
+3. **Set Environment Variables**
+   ```
+   NEXT_PUBLIC_API_URL=https://your-backend.onrender.com
+   NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID=your_project_id
+   ```
+
+📖 **Full deployment guide**: See [DEPLOYMENT.md](./DEPLOYMENT.md)
+
+## ✨ Features
+
+### Core Features
+- 🔄 **Cross-Chain Swaps** - Seamless token swaps via SideShift.ai
+- 🤖 **AI Portfolio Assistant** - Intelligent portfolio analysis and recommendations
+- 💰 **Campaign Fundraising** - Create and manage fundraising campaigns
+- 📊 **Real-Time Analytics** - Track swaps, volume, and user activity
+- 🔔 **Notifications** - Real-time updates via WebSocket
+- 👥 **Social Feed** - Share insights and swap activities
+
+### Technical Features
+- ✅ PostgreSQL database with comprehensive schema
+- ✅ Redis caching (optional)
+- ✅ WebSocket real-time updates
+- ✅ JWT authentication
+- ✅ Rate limiting and security headers
+- ✅ Comprehensive error handling
+- ✅ TypeScript throughout
+- ✅ Production-ready deployment configs
+
+## 🏗️ Architecture
+
+```
+AutoXShift v2.0
+├── frontend/          # Next.js 14 App Router
+│   ├── app/          # Pages and routes
+│   ├── components/   # React components
+│   └── lib/          # Utilities and API clients
+│
+├── backend/          # Express.js API
+│   ├── src/
+│   │   ├── routes/  # API endpoints
+│   │   ├── services/ # Business logic
+│   │   ├── database/ # Database schema and connection
+│   │   └── middleware/ # Auth, validation, security
+│   └── scripts/     # Deployment scripts
+│
+└── docs/            # Documentation
+```
+
+## 🔧 Tech Stack
+
+### Frontend
+- **Framework**: Next.js 14 (App Router)
+- **UI**: React 18, TailwindCSS, ShadCN UI
+- **Web3**: Wagmi, Viem, Ethers.js
+- **State**: TanStack Query
+- **Styling**: TailwindCSS, Framer Motion
+
+### Backend
+- **Runtime**: Node.js 18+
+- **Framework**: Express.js
+- **Language**: TypeScript
+- **Database**: PostgreSQL (Supabase)
+- **Cache**: Redis (optional)
+- **AI**: Google Gemini 1.5 Flash
+- **WebSocket**: ws
+
+## 📚 API Documentation
+
+### Health Check
+```
+GET /api/health
+```
+
+### Swap Endpoints
+```
+GET  /api/swap/tokens
 POST /api/swap/quote
-Content-Type: application/json
-
-{
-  "fromToken": "BTC",
-  "fromNetwork": "BTC",
-  "toToken": "ETH",
-  "toNetwork": "ETH",
-  "amount": "0.1",
-  "settleAddress": "0x..."
-}
-```
-
-### Create Shift
-```http
 POST /api/swap/shift
-Content-Type: application/json
-
-{
-  "quoteId": "quote-id-from-previous-request",
-  "settleAddress": "0x..."
-}
+GET  /api/swap/status/:shiftId
 ```
 
-### Get Shift Status
-```http
-GET /api/swap/status/:shiftId
+### AI Endpoints
+```
+POST /api/ai/recommend
+POST /api/ai/analyze
+POST /api/ai/explain
+POST /api/ai/optimize
 ```
 
-### Get Supported Tokens
-```http
-GET /api/swap/tokens
+### Campaign Endpoints
+```
+GET    /api/campaigns
+POST   /api/campaigns
+GET    /api/campaigns/:id
+POST   /api/campaigns/:id/donate
 ```
 
-### AI Recommendation Endpoint
-```http
-GET /api/ai/recommend?fromToken=BTC&toToken=ETH&amount=0.1
+See full API docs in code comments and [DEPLOYMENT.md](./DEPLOYMENT.md)
+
+## 🔐 Environment Variables
+
+### Backend (.env)
+```env
+PORT=3001
+NODE_ENV=development
+DATABASE_URL=postgresql://...
+SIDESHIFT_API_KEY=your_key
+GOOGLE_API_KEY=your_key
+JWT_SECRET=your_secret
+FRONTEND_URL=http://localhost:3000
+REDIS_URL=redis://localhost:6379 (optional)
 ```
+
+### Frontend (.env.local)
+```env
+NEXT_PUBLIC_API_URL=http://localhost:3001
+NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID=your_project_id
+```
+
+## 🗄️ Database Schema
+
+The database includes tables for:
+- Users and authentication
+- Swap history
+- Campaigns and donations
+- AI insights
+- Portfolio snapshots
+- Analytics events
+- Notifications
+- Social posts and interactions
+- Referrals and rewards
+
+See `backend/src/database/schema.sql` for full schema.
 
 ## 🧪 Testing
 
-### Backend API
 ```bash
-cd backend
-npm run test:gemini  # Test Gemini AI integration
+# Backend tests
+cd backend && npm test
+
+# Frontend tests
+cd frontend && npm test
 ```
 
-### Frontend
-```bash
-cd frontend
-npm run dev  # Start development server
-```
+## 📝 License
 
-## 🚀 Deployment
-
-### Frontend (Vercel)
-```bash
-cd frontend
-vercel --prod
-```
-
-### Backend (Render)
-```bash
-# Connect GitHub repository to Render
-# Set environment variables
-# Deploy automatically on push
-```
-
-### Database & Infrastructure
-- **PostgreSQL**: Required for persistent storage (swaps, campaigns, analytics)
-- **Redis**: Optional but recommended for caching
-- **Docker**: Use `docker-compose up -d` for full stack deployment
-
-## 🔒 Security
-
-- **Self-Custodial**: Users maintain full control of their funds - deposits go directly to SideShift
-- **No Data Storage**: No sensitive user data stored on servers
-- **SideShift Security**: Leverages SideShift.ai's secure infrastructure
-- **Rate Limiting**: API endpoints protected against abuse
+MIT License - see LICENSE file for details
 
 ## 🤝 Contributing
 
-1. Fork the repository
-2. Create feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open Pull Request
+Contributions welcome! Please open an issue or submit a pull request.
 
-## 📄 License
+## 📞 Support
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+- **Issues**: [GitHub Issues](https://github.com/ayushsaklani-min/AutoXshift_2.0/issues)
+- **Documentation**: See [DEPLOYMENT.md](./DEPLOYMENT.md) and [ARCHITECTURE_V2.md](./ARCHITECTURE_V2.md)
 
-## 🆘 Support
+## 🙏 Acknowledgments
 
-- **Documentation**: [docs/](docs/)
-- **Issues**: [GitHub Issues](https://github.com/your-repo/issues)
-- **Discord**: [AutoXShift Community](https://discord.gg/autoxshift)
-
-## 🏆 Hackathon Submission
-
-This project was built for the **SideShift API Hackathon** focusing on:
-- ✅ **API Integration**: Complete SideShift API integration
-- ✅ **Use Case Relevance**: Real-world DeFi utility
-- ✅ **Originality**: AI-powered optimization
-- ✅ **SideShift Values**: Self-custodial, crypto-native
-- ✅ **Product Design**: Modern, intuitive interface
-- ✅ **Presentation**: Comprehensive documentation
+- SideShift.ai for cross-chain swap infrastructure
+- Google Gemini for AI capabilities
+- Supabase for PostgreSQL hosting
+- Vercel and Render for deployment platforms
 
 ---
 
