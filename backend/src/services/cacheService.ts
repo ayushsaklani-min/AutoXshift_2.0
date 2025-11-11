@@ -10,9 +10,15 @@ class CacheService {
   }
 
   private async initialize() {
+    // Only initialize Redis if REDIS_URL is explicitly configured
+    if (!process.env.REDIS_URL) {
+      logger.info('Redis not configured (REDIS_URL not set). Caching disabled. App will work without Redis.')
+      return
+    }
+
     try {
       this.client = createClient({
-        url: process.env.REDIS_URL || 'redis://localhost:6379',
+        url: process.env.REDIS_URL,
         socket: {
           reconnectStrategy: (retries) => {
             if (retries > 5) {
@@ -47,6 +53,7 @@ class CacheService {
       ])
     } catch (error) {
       // Silently fail - app works without Redis
+      logger.warn('Redis connection failed, caching disabled. App will work without Redis.')
       this.client = null
       this.isConnected = false
     }

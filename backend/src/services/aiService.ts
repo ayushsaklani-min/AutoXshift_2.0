@@ -35,16 +35,24 @@ interface GasOptimization {
 class AIService {
   private genAI: GoogleGenerativeAI | null = null
   private model: any = null
+  private initialized: boolean = false
 
-  constructor() {
+  /**
+   * Initialize AI service (lazy loading)
+   */
+  private initialize() {
+    if (this.initialized) return
+
     if (process.env.GOOGLE_API_KEY) {
       this.genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY)
       this.model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
-      logger.info('Google Gemini API configured successfully')
+      logger.info('✅ Google Gemini API configured successfully')
     } else {
       logger.warn('Google API key not found. AI features will not be available.')
       logger.warn('Get your API key from: https://ai.google.dev/')
     }
+
+    this.initialized = true
   }
 
   /**
@@ -55,6 +63,7 @@ class AIService {
     toToken: string
     amount: number
   }): Promise<SwapRecommendation[]> {
+    this.initialize()
     if (!this.model) {
       throw new Error('Google API key not configured. Please set GOOGLE_API_KEY in your .env file to use AI features.')
     }
@@ -71,6 +80,7 @@ class AIService {
    * Analyze market conditions using AI
    */
   async analyzeMarketConditions(tokens: string[], timeframe: string): Promise<MarketAnalysis> {
+    this.initialize()
     if (!this.model) {
       throw new Error('Google API key not configured. Please set GOOGLE_API_KEY in your .env file to use AI features.')
     }
@@ -87,6 +97,7 @@ class AIService {
    * Get AI explanation of swap transaction
    */
   async explainSwap(transaction: any): Promise<string> {
+    this.initialize()
     if (!this.model) {
       throw new Error('Google API key not configured. Please set GOOGLE_API_KEY in your .env file to use AI features.')
     }

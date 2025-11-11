@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAccount, useConnect, useDisconnect } from 'wagmi'
 import { Header } from '@/components/Header'
 import { SwapPanel } from '@/components/SwapPanel'
@@ -17,7 +17,13 @@ export default function Home() {
   const { address, isConnected } = useAccount()
   const { connect, connectors } = useConnect()
   const { disconnect } = useDisconnect()
+  const [mounted, setMounted] = useState(false)
   const [activeTab, setActiveTab] = useState('swap')
+
+  // Fix hydration error by only rendering connector names on client
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   if (!isConnected) {
     return (
@@ -53,7 +59,7 @@ export default function Home() {
                   className="w-full h-12 text-lg font-semibold neon-glow hover:neon-glow"
                   variant="outline"
                 >
-                  {connector.name}
+                  {mounted ? connector.name : 'Connect Wallet'}
                 </Button>
               ))}
               <p className="text-sm text-muted-foreground text-center">

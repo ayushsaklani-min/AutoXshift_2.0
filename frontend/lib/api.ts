@@ -1,6 +1,19 @@
 import { getAuthHeaders } from './auth'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+// Determine API URL based on environment
+const getApiUrl = () => {
+  // If we're in the browser and on Vercel, use the Render backend
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname
+    if (hostname.includes('vercel.app') || hostname.includes('autoxshift')) {
+      return process.env.NEXT_PUBLIC_BACKEND_URL || 'https://autoxshift-2-0.onrender.com'
+    }
+  }
+  // Local development or explicit override
+  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+}
+
+const API_URL = getApiUrl()
 
 export class ApiError extends Error {
   constructor(
@@ -18,27 +31,56 @@ async function request<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const url = `${API_URL}${endpoint}`
-  const headers = {
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
     ...getAuthHeaders(),
     ...options.headers,
   }
 
-  const response = await fetch(url, {
-    ...options,
-    headers,
-  })
+  try {
+    const response = await fetch(url, {
+      ...options,
+      headers,
+    })
 
-  const data = await response.json()
+    // Handle non-JSON responses
+    const contentType = response.headers.get('content-type')
+    let data: any
+    
+    if (contentType && contentType.includes('application/json')) {
+      data = await response.json()
+    } else {
+      const text = await response.text()
+      throw new ApiError(
+        text || 'Request failed',
+        response.status,
+        { text }
+      )
+    }
 
-  if (!response.ok) {
-    throw new ApiError(
-      data.message || data.error || 'Request failed',
-      response.status,
-      data
-    )
+    if (!response.ok) {
+      throw new ApiError(
+        data.message || data.error || 'Request failed',
+        response.status,
+        data
+      )
+    }
+
+    return data
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error
+    }
+    // Handle network errors
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new ApiError(
+        'Network error: Unable to connect to the server. Please check your connection and API URL.',
+        0,
+        { originalError: error.message }
+      )
+    }
+    throw error
   }
-
-  return data
 }
 
 // Swap API

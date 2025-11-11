@@ -13,18 +13,18 @@ const router = express.Router()
  * @body { fromToken, fromNetwork, toToken, toNetwork, amount, settleAddress }
  */
 router.post('/quote', async (req: any, res: any) => {
-  try {
-    const { fromToken, fromNetwork, toToken, toNetwork, amount, settleAddress } = req.body
-    
-    // Validation
-    if (!fromToken || !fromNetwork || !toToken || !toNetwork || !amount || !settleAddress) {
-      return res.status(400).json({
-        success: false,
-        error: 'Missing required fields',
-        message: 'fromToken, fromNetwork, toToken, toNetwork, amount, and settleAddress are required'
-      })
-    }
+  const { fromToken, fromNetwork, toToken, toNetwork, amount, settleAddress } = req.body
+  
+  // Validation
+  if (!fromToken || !fromNetwork || !toToken || !toNetwork || !amount || !settleAddress) {
+    return res.status(400).json({
+      success: false,
+      error: 'Missing required fields',
+      message: 'fromToken, fromNetwork, toToken, toNetwork, amount, and settleAddress are required'
+    })
+  }
 
+  try {
     logger.info(`Quote request: ${amount} ${fromToken} (${fromNetwork}) → ${toToken} (${toNetwork})`)
     
     const quote = await swapService.getSwapQuote({

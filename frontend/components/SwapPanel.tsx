@@ -125,10 +125,17 @@ export function SwapPanel() {
   useEffect(() => {
     const fetchTokens = async () => {
       try {
+        setIsLoading(true)
+        setError(null)
+        
         const data = await swapApi.getTokens()
-        if (data.success && Array.isArray(data.data) && data.data.length > 0) {
+        
+        // If we get tokens, use them
+        if (data && data.success && Array.isArray(data.data) && data.data.length > 0) {
           setTokens(data.data)
-          // Set default tokens from real SideShift data
+          setError(null)
+          
+          // Set default tokens
           const btc = data.data.find((t: Token) => t.coin === 'BTC' && t.network === 'BTC')
           const eth = data.data.find((t: Token) => t.coin === 'ETH' && t.network === 'ETH')
           if (btc) setFromToken(btc)
@@ -138,7 +145,19 @@ export function SwapPanel() {
         }
       } catch (err: any) {
         console.error('Failed to fetch tokens:', err)
-        setError(`Failed to load tokens: ${err.message || 'Please check your connection and API configuration'}`)
+        // Extract error message from API response
+        let errorMessage = 'Failed to load tokens from SideShift API'
+        if (err.message) {
+          errorMessage = err.message
+        } else if (err.data?.message) {
+          errorMessage = err.data.message
+        } else if (err.data?.error) {
+          errorMessage = err.data.error
+        }
+        setError(`Cannot load tokens: ${errorMessage}. Please check your internet connection and DNS settings.`)
+        setTokens([]) // Clear tokens on error
+      } finally {
+        setIsLoading(false)
       }
     }
     fetchTokens()
@@ -354,11 +373,19 @@ export function SwapPanel() {
                       const token = tokens.find(t => t.coin === coin && t.network === network)
                       if (token) setFromToken(token)
                     }}
-                    className="w-full bg-transparent border-none outline-none font-semibold"
+                    className="w-full bg-background text-foreground border-none outline-none font-semibold cursor-pointer appearance-none"
+                    style={{
+                      backgroundColor: 'transparent',
+                      color: 'inherit'
+                    }}
                   >
-                    <option value="">Select token</option>
+                    <option value="" className="bg-background text-foreground">Select token</option>
                     {tokens.map(token => (
-                      <option key={`${token.coin}-${token.network}`} value={`${token.coin}-${token.network}`}>
+                      <option 
+                        key={`${token.coin}-${token.network}`} 
+                        value={`${token.coin}-${token.network}`}
+                        className="bg-background text-foreground"
+                      >
                         {token.symbol} ({token.network})
                       </option>
                     ))}
@@ -421,11 +448,19 @@ export function SwapPanel() {
                       const token = tokens.find(t => t.coin === coin && t.network === network)
                       if (token) setToToken(token)
                     }}
-                    className="w-full bg-transparent border-none outline-none font-semibold"
+                    className="w-full bg-background text-foreground border-none outline-none font-semibold cursor-pointer appearance-none"
+                    style={{
+                      backgroundColor: 'transparent',
+                      color: 'inherit'
+                    }}
                   >
-                    <option value="">Select token</option>
+                    <option value="" className="bg-background text-foreground">Select token</option>
                     {tokens.map(token => (
-                      <option key={`${token.coin}-${token.network}`} value={`${token.coin}-${token.network}`}>
+                      <option 
+                        key={`${token.coin}-${token.network}`} 
+                        value={`${token.coin}-${token.network}`}
+                        className="bg-background text-foreground"
+                      >
                         {token.symbol} ({token.network})
                       </option>
                     ))}

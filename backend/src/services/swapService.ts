@@ -2,7 +2,8 @@ import axios from 'axios'
 import { logger } from '../utils/logger'
 
 // SideShift API base URL
-const SIDESHIFT_API_BASE = 'https://api.sideshift.ai/v2'
+// Try multiple possible endpoints
+const SIDESHIFT_API_BASE = process.env.SIDESHIFT_API_URL || 'https://api.sideshift.ai/v2'
 
 // SideShift API interfaces
 interface SideShiftQuote {
@@ -101,17 +102,27 @@ export interface TokenInfo {
 }
 
 class SwapService {
-  private sideshiftSecret: string
-  private affiliateId: string
-  private axiosInstance: any
+  private sideshiftSecret: string | null = null
+  private affiliateId: string | null = null
+  private axiosInstance: any = null
+  private initialized: boolean = false
 
-  constructor() {
+  /**
+   * Initialize or get the API configuration (lazy loading)
+   */
+  private initialize() {
+    if (this.initialized) return
+
     // Check for API key in multiple possible env variable names
     this.sideshiftSecret = process.env.SIDESHIFT_API_KEY || 
                           process.env.X_SIDESHIFT_SECRET || 
                           process.env.SIDESHIFT_SECRET || 
                           ''
     this.affiliateId = process.env.SIDESHIFT_AFFILIATE_ID || ''
+    
+    // Debug logging
+    logger.info(`SideShift API Key found: ${this.sideshiftSecret ? 'Yes (length: ' + this.sideshiftSecret.length + ')' : 'No'}`)
+    logger.info(`SideShift Affiliate ID: ${this.affiliateId || 'Not set'}`)
     
     // Create axios instance with SideShift API headers
     this.axiosInstance = axios.create({
@@ -126,9 +137,19 @@ class SwapService {
     if (!this.sideshiftSecret) {
       logger.error('SideShift API secret not configured. Please set SIDESHIFT_API_KEY in your .env file.')
       logger.error('Get your API key from: https://sideshift.ai/settings/api')
+      logger.error('Current env vars:', {
+        SIDESHIFT_API_KEY: process.env.SIDESHIFT_API_KEY ? 'set' : 'not set',
+        X_SIDESHIFT_SECRET: process.env.X_SIDESHIFT_SECRET ? 'set' : 'not set',
+        SIDESHIFT_SECRET: process.env.SIDESHIFT_SECRET ? 'set' : 'not set'
+      })
     } else {
-      logger.info('SideShift API configured successfully')
+      logger.info('✅ SideShift API configured successfully')
+      if (this.affiliateId) {
+        logger.info(`✅ SideShift Affiliate ID: ${this.affiliateId}`)
+      }
     }
+
+    this.initialized = true
   }
 
   /**
@@ -144,9 +165,10 @@ class SwapService {
     amount: string
     settleAddress: string
   }): Promise<SwapQuote> {
+    this.initialize()
     try {
       if (!this.sideshiftSecret) {
-        throw new Error('SideShift API secret not configured')
+        throw new Error('SideShift API secret not configured. Please set SIDESHIFT_API_KEY in your .env file.')
       }
 
       logger.info(`Getting quote: ${params.amount} ${params.fromToken} (${params.fromNetwork}) → ${params.toToken} (${params.toNetwork})`)
@@ -193,7 +215,9 @@ class SwapService {
       logger.error('Error getting SideShift quote:', error.response?.data || error.message)
       
       // Provide helpful error messages
-      if (error.response?.status === 400) {
+      if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
+        throw new Error('Cannot connect to SideShift API. Please check your internet connection and DNS settings.')
+      } else if (error.response?.status === 400) {
         throw new Error(error.response.data?.message || 'Invalid swap parameters')
       } else if (error.response?.status === 401) {
         throw new Error('Invalid SideShift API credentials')
@@ -216,9 +240,10 @@ class SwapService {
     quoteId: string
     settleAddress: string
   }): Promise<ShiftStatus> {
+    this.initialize()
     try {
       if (!this.sideshiftSecret) {
-        throw new Error('SideShift API secret not configured')
+        throw new Error('SideShift API secret not configured. Please set SIDESHIFT_API_KEY in your .env file.')
       }
 
       logger.info(`Creating shift with quote: ${params.quoteId}`)
@@ -234,6 +259,18 @@ class SwapService {
       return this.mapShiftToStatus(shift)
     } catch (error: any) {
       logger.error('Error creating shift:', error.response?.data || error.message)
+      
+      // Provide helpful error messages
+      if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
+        throw new Error('Cannot connect to SideShift API. Please check your internet connection and DNS settings.')
+      } else if (error.response?.status === 400) {
+        throw new Error(error.response.data?.message || 'Invalid shift parameters')
+      } else if (error.response?.status === 401) {
+        throw new Error('Invalid SideShift API credentials')
+      } else if (error.response?.status === 404) {
+        throw new Error('Quote not found or expired')
+      }
+      
       throw new Error(`Failed to create shift: ${error.response?.data?.message || error.message}`)
     }
   }
@@ -244,9 +281,10 @@ class SwapService {
    * @returns Current shift status
    */
   async getShiftStatus(shiftId: string): Promise<ShiftStatus> {
+    this.initialize()
     try {
       if (!this.sideshiftSecret) {
-        throw new Error('SideShift API secret not configured')
+        throw new Error('SideShift API secret not configured. Please set SIDESHIFT_API_KEY in your .env file.')
       }
 
       const response = await this.axiosInstance.get(`/shifts/${shiftId}`)
@@ -264,6 +302,7 @@ class SwapService {
    * @returns List of supported tokens
    */
   async getSupportedTokens(): Promise<TokenInfo[]> {
+    this.initialize()
     if (!this.sideshiftSecret) {
       throw new Error('SideShift API secret not configured. Please set SIDESHIFT_API_KEY in your .env file.')
     }
@@ -298,9 +337,9 @@ class SwapService {
     } catch (error: any) {
       logger.error('Error getting supported tokens:', error.response?.data || error.message)
       
-      // Throw error instead of returning fallback - we need real data
-      if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
-        throw new Error('Cannot connect to SideShift API. Please check your internet connection and API configuration.')
+      // Provide helpful error messages
+      if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
+        throw new Error('Cannot connect to SideShift API. Please check your internet connection and DNS settings.')
       }
       
       throw new Error(`Failed to get supported tokens from SideShift: ${error.response?.data?.message || error.message}`)

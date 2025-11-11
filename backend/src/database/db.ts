@@ -101,8 +101,28 @@ class Database {
     try {
       await this.query('SELECT NOW()')
       return true
-    } catch (error) {
-      logger.error('Database connection test failed:', error)
+    } catch (error: any) {
+      // Enhanced error logging for debugging
+      const dbUrl = process.env.DATABASE_URL || 'N/A'
+      const urlParts = dbUrl.match(/postgresql:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/(.+)/)
+      
+      logger.error('Database connection test failed:', {
+        error: error?.message || error,
+        code: error?.code,
+        severity: error?.severity,
+        // Show connection details (masked password)
+        connectionInfo: urlParts ? {
+          user: urlParts[1],
+          passwordLength: urlParts[2]?.length || 0,
+          host: urlParts[3],
+          port: urlParts[4],
+          database: urlParts[5],
+          urlPreview: dbUrl.substring(0, 30) + '...' + dbUrl.substring(dbUrl.length - 20)
+        } : 'Could not parse connection string',
+        suggestion: error?.code === 'XX000' || error?.message?.includes('Tenant or user not found')
+          ? 'Check: 1) Username format (use "postgres" for direct, "postgres.{project-ref}" for pooler), 2) Password encoding, 3) Project reference in host/username'
+          : 'Verify DATABASE_URL format and credentials'
+      })
       return false
     }
   }

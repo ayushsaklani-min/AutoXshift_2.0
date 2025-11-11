@@ -8,17 +8,34 @@ if (process.env.NODE_ENV !== 'production') {
   // Try to load .env file in development
   const envPath1 = path.resolve(process.cwd(), '.env')
   const envPath2 = path.resolve(process.cwd(), '../.env')
+  const envPath3 = path.resolve(__dirname, '../.env')
+  
+  console.log('Looking for .env file at:', { envPath1, envPath2, envPath3, cwd: process.cwd(), __dirname })
   
   let result = dotenv.config({ path: envPath1 })
   if (result.error) {
+    console.log('Failed to load from envPath1, trying envPath2...')
     result = dotenv.config({ path: envPath2 })
   }
   if (result.error) {
-    dotenv.config() // Fallback to default
+    console.log('Failed to load from envPath2, trying envPath3...')
+    result = dotenv.config({ path: envPath3 })
+  }
+  if (result.error) {
+    console.log('Trying default .env location...')
+    result = dotenv.config() // Fallback to default
   }
   
   if (!result.error) {
-    console.log('✅ .env file loaded successfully')
+    console.log('✅ .env file loaded successfully from:', result.parsed ? Object.keys(result.parsed).length + ' variables' : 'unknown')
+    // Debug: Show if SIDESHIFT_API_KEY is loaded
+    if (process.env.SIDESHIFT_API_KEY) {
+      console.log('✅ SIDESHIFT_API_KEY is loaded (length:', process.env.SIDESHIFT_API_KEY.length + ')')
+    } else {
+      console.log('❌ SIDESHIFT_API_KEY is NOT loaded')
+    }
+  } else {
+    console.log('❌ Failed to load .env file:', result.error)
   }
 } else {
   // In production, env vars come from Render/Vercel

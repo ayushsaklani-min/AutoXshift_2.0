@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AutoXShift API Connection Test</title>
+    <style>
+        body { font-family: Arial; padding: 20px; background: #1a1a1a; color: #fff; }
+        .test { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background: #00ff8844; border: 1px solid #00ff88; }
+        .error { background: #ff000044; border: 1px solid #ff0000; }
+        button { padding: 10px 20px; background: #00ff88; border: none; border-radius: 5px; cursor: pointer; }
+        pre { background: #000; padding: 10px; border-radius: 5px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>AutoXShift API Connection Test</h1>
+    
+    <button onclick="testConnection()">Test Backend Connection</button>
+    
+    <div id="results"></div>
+    
+    <script>
+        const BACKEND_URL = 'https://autoxshift-2-0.onrender.com';
+        
+        async function testConnection() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<p>Testing...</p>';
+            
+            const tests = [
+                { name: 'Health Check', url: '/api/health' },
+                { name: 'Get Tokens', url: '/api/swap/tokens' },
+                { name: 'Analytics Dashboard', url: '/api/analytics/dashboard' },
+            ];
+            
+            let html = '';
+            
+            for (const test of tests) {
+                try {
+                    const response = await fetch(BACKEND_URL + test.url);
+                    const data = await response.json();
+                    
+                    html += `
+                        <div class="test ${response.ok ? 'success' : 'error'}">
+                            <h3>${test.name}: ${response.ok ? '✅ SUCCESS' : '❌ FAILED'}</h3>
+                            <p>Status: ${response.status}</p>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                } catch (error) {
+                    html += `
+                        <div class="test error">
+                            <h3>${test.name}: ❌ ERROR</h3>
+                            <p>${error.message}</p>
+                        </div>
+                    `;
+                }
+            }
+            
+            results.innerHTML = html;
+        }
+    </script>
+</body>
+</html>

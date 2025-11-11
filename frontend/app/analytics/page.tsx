@@ -35,20 +35,30 @@ export default function AnalyticsPage() {
     try {
       setIsLoading(true)
       
-      const [dashboardData, swapsData, tokensData] = await Promise.all([
+      const [dashboardData, swapsData, tokensData] = await Promise.allSettled([
         analyticsApi.getDashboard(),
         analyticsApi.getSwapStats('30d'),
         analyticsApi.getTopTokens(10),
       ])
 
-      if (dashboardData.success) {
-        setStats(dashboardData.data)
+      if (dashboardData.status === 'fulfilled' && dashboardData.value.success) {
+        setStats(dashboardData.value.data)
+      } else if (dashboardData.status === 'rejected') {
+        console.error('Failed to load dashboard:', dashboardData.reason)
       }
-      if (swapsData.success) {
-        setSwapStats(swapsData.data)
+
+      if (swapsData.status === 'fulfilled' && swapsData.value.success) {
+        setSwapStats(swapsData.value.data || [])
+      } else if (swapsData.status === 'rejected') {
+        console.error('Failed to load swap stats:', swapsData.reason)
+        setSwapStats([])
       }
-      if (tokensData.success) {
-        setTopTokens(tokensData.data)
+
+      if (tokensData.status === 'fulfilled' && tokensData.value.success) {
+        setTopTokens(tokensData.value.data || [])
+      } else if (tokensData.status === 'rejected') {
+        console.error('Failed to load top tokens:', tokensData.reason)
+        setTopTokens([])
       }
     } catch (error) {
       console.error('Failed to load analytics:', error)
