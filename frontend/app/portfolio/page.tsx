@@ -82,6 +82,7 @@ export default function PortfolioPage() {
       if (data.success) {
         setAnalysis(data.data)
       }
+      // Errors are caught in catch block below
     } catch (error: any) {
       console.error('Failed to analyze portfolio:', error)
       alert(`Failed to analyze portfolio: ${error.message || 'Unknown error'}`)
