@@ -70,6 +70,9 @@ db.initialize() // Explicitly initialize after .env is loaded
 const app = express()
 const PORT = process.env.PORT || 3001
 
+// Trust proxy (required for Render and other hosting platforms)
+app.set('trust proxy', true)
+
 // Create HTTP server for WebSocket support
 const server = createServer(app)
 

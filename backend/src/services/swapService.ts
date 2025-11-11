@@ -338,7 +338,10 @@ class SwapService {
       logger.error('Error getting supported tokens:', error.response?.data || error.message)
       
       // Provide helpful error messages
-      if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
+      if (error.code === 'ENOTFOUND') {
+        logger.error('DNS resolution failed for api.sideshift.ai. This may be a network/DNS issue on the hosting platform.')
+        throw new Error('Cannot resolve SideShift API domain. This may be a DNS or network configuration issue. Please contact support or check your hosting platform\'s network settings.')
+      } else if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
         throw new Error('Cannot connect to SideShift API. Please check your internet connection and DNS settings.')
       }
       
