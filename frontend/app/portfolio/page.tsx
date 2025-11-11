@@ -81,8 +81,6 @@ export default function PortfolioPage() {
       const data = await portfolioApi.analyze(tokens)
       if (data.success) {
         setAnalysis(data.data)
-      } else {
-        console.error('Portfolio analysis failed:', data.error || data.message)
       }
     } catch (error: any) {
       console.error('Failed to analyze portfolio:', error)
