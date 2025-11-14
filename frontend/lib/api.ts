@@ -49,8 +49,8 @@ async function request<T>(
     ...options.headers,
   }
 
-  // Debug logging in development
-  if (process.env.NODE_ENV === 'development') {
+  // Debug logging (always log in browser for debugging)
+  if (typeof window !== 'undefined') {
     console.log(`[API] ${options.method || 'GET'} ${url}`)
   }
 

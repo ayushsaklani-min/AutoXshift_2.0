@@ -82,12 +82,39 @@ const server = createServer(app)
 app.use(helmet())
 app.use(securityHeaders)
 app.use(requestId)
-app.use(cors({
-  origin: process.env.FRONTEND_URL || ['http://localhost:3000', 'http://127.0.0.1:3000'],
+// CORS configuration
+const corsOptions = {
+  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) {
+      return callback(null, true)
+    }
+    
+    // In development, allow all localhost origins
+    if (process.env.NODE_ENV !== 'production') {
+      if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+        return callback(null, true)
+      }
+    }
+    
+    // In production, use FRONTEND_URL or default allowed origins
+    const allowedOrigins = process.env.FRONTEND_URL 
+      ? (Array.isArray(process.env.FRONTEND_URL) ? process.env.FRONTEND_URL : [process.env.FRONTEND_URL])
+      : ['http://localhost:3000', 'http://127.0.0.1:3000']
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true)
+    } else {
+      logger.warn(`CORS blocked origin: ${origin}`)
+      callback(new Error('Not allowed by CORS'))
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}))
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-request-id']
+}
+
+app.use(cors(corsOptions))
 
 // Rate limiting
 app.use(apiLimiter)

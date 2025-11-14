@@ -128,7 +128,9 @@ export function SwapPanel() {
         setIsLoading(true)
         setError(null)
         
+        console.log('[SwapPanel] Fetching tokens...')
         const data = await swapApi.getTokens()
+        console.log('[SwapPanel] Tokens received:', data?.success ? `${data.data?.length || 0} tokens` : 'Failed', data)
         
         // If we get tokens, use them
         if (data && data.success && Array.isArray(data.data) && data.data.length > 0) {
@@ -144,7 +146,13 @@ export function SwapPanel() {
           setError('No tokens available from SideShift API. Please check your API configuration.')
         }
       } catch (err: any) {
-        console.error('Failed to fetch tokens:', err)
+        console.error('[SwapPanel] Failed to fetch tokens:', err)
+        console.error('[SwapPanel] Error details:', {
+          message: err.message,
+          status: err.status,
+          data: err.data,
+          stack: err.stack
+        })
         // Extract error message from API response
         let errorMessage = 'Failed to load tokens from SideShift API'
         if (err.message) {

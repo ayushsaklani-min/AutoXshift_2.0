@@ -136,7 +136,9 @@ class SwapService {
                           process.env.SIDESHIFT_API_KEY || 
                           process.env.X_SIDESHIFT_SECRET || 
                           ''
-    this.affiliateId = process.env.SIDESHIFT_AFFILIATE_ID || ''
+    // Only set affiliateId if it's a valid non-empty string
+    const rawAffiliateId = process.env.SIDESHIFT_AFFILIATE_ID || ''
+    this.affiliateId = rawAffiliateId.trim() || null
     
     // Debug logging
     logger.info(`SideShift API Key found: ${this.sideshiftSecret ? 'Yes (length: ' + this.sideshiftSecret.length + ')' : 'No'}`)
@@ -218,15 +220,25 @@ class SwapService {
         headers['x-user-ip'] = userIp
       }
 
-      // Call SideShift API to get quote (POST request according to docs)
-      const response = await this.axiosInstance.post('/quotes', {
+      // Prepare request body - only include affiliateId if it's valid
+      const requestBody: any = {
         depositCoin: params.fromToken,
         depositNetwork: params.fromNetwork,
         settleCoin: params.toToken,
         settleNetwork: params.toNetwork,
-        depositAmount: params.amount,
-        affiliateId: this.affiliateId || undefined
-      }, {
+        depositAmount: params.amount
+      }
+      
+      // Only include affiliateId if it's a valid non-empty string
+      if (this.affiliateId && this.affiliateId.trim()) {
+        requestBody.affiliateId = this.affiliateId.trim()
+        logger.info(`Including affiliateId in quote request: ${this.affiliateId}`)
+      } else {
+        logger.info('Skipping affiliateId (not set or empty)')
+      }
+
+      // Call SideShift API to get quote (POST request according to docs)
+      const response = await this.axiosInstance.post('/quotes', requestBody, {
         headers
       })
 
@@ -292,7 +304,9 @@ class SwapService {
         data: error.response?.data,
         headers: error.response?.headers,
         apiKeyPresent: !!this.sideshiftSecret,
-        apiKeyLength: this.sideshiftSecret?.length || 0
+        apiKeyLength: this.sideshiftSecret?.length || 0,
+        affiliateId: this.affiliateId || 'not set',
+        affiliateIdLength: this.affiliateId?.length || 0
       })
       
       // Provide helpful error messages
@@ -380,11 +394,21 @@ class SwapService {
         headers['x-user-ip'] = userIp
       }
 
-      const response = await this.axiosInstance.post('/shifts/fixed', {
+      // Prepare request body - only include affiliateId if it's valid
+      const requestBody: any = {
         quoteId: params.quoteId,
-        settleAddress: params.settleAddress,
-        affiliateId: this.affiliateId || undefined
-      }, {
+        settleAddress: params.settleAddress
+      }
+      
+      // Only include affiliateId if it's a valid non-empty string
+      if (this.affiliateId && this.affiliateId.trim()) {
+        requestBody.affiliateId = this.affiliateId.trim()
+        logger.info(`Including affiliateId in shift request: ${this.affiliateId}`)
+      } else {
+        logger.info('Skipping affiliateId (not set or empty)')
+      }
+
+      const response = await this.axiosInstance.post('/shifts/fixed', requestBody, {
         headers
       })
 
