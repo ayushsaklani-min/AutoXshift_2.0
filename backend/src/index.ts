@@ -72,7 +72,8 @@ const app = express()
 const PORT = process.env.PORT || 3001
 
 // Trust proxy (required for Render and other hosting platforms)
-app.set('trust proxy', true)
+// Set to 1 to trust first proxy (Render's load balancer)
+app.set('trust proxy', 1)
 
 // Create HTTP server for WebSocket support
 const server = createServer(app)
