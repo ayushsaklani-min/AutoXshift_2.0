@@ -252,6 +252,15 @@ export function SwapPanel() {
       if (data.success) {
         setSwapQuote(data.data)
         setActiveShift(null) // Reset active shift when new quote
+        
+        // Save swap quote to localStorage for AI explanation
+        localStorage.setItem('currentSwapQuote', JSON.stringify({
+          ...data.data,
+          fromTokenName: fromToken?.name,
+          toTokenName: toToken?.name,
+          fromTokenSymbol: fromToken?.symbol,
+          toTokenSymbol: toToken?.symbol
+        }))
       } else {
         setError('Failed to get quote')
       }
@@ -373,18 +382,31 @@ export function SwapPanel() {
                       const token = tokens.find(t => t.coin === coin && t.network === network)
                       if (token) setFromToken(token)
                     }}
-                    className="w-full bg-background text-foreground border-none outline-none font-semibold cursor-pointer appearance-none"
+                    className="w-full bg-background text-foreground border-none outline-none font-semibold cursor-pointer appearance-none text-xl py-3"
                     style={{
                       backgroundColor: 'transparent',
-                      color: 'inherit'
+                      color: 'inherit',
+                      fontSize: '1.5rem',
+                      paddingTop: '0.75rem',
+                      paddingBottom: '0.75rem',
+                      lineHeight: '1.75rem'
                     }}
                   >
-                    <option value="" className="bg-background text-foreground">Select token</option>
+                    <option value="" className="bg-background text-foreground text-xl py-4" style={{ fontSize: '1.5rem', padding: '1rem' }}>Select token</option>
                     {tokens.map(token => (
                       <option 
                         key={`${token.coin}-${token.network}`} 
                         value={`${token.coin}-${token.network}`}
-                        className="bg-background text-foreground"
+                        className="bg-background text-foreground text-xl py-4"
+                        style={{
+                          paddingTop: '1rem',
+                          paddingBottom: '1rem',
+                          paddingLeft: '1rem',
+                          paddingRight: '1rem',
+                          fontSize: '1.5rem',
+                          lineHeight: '2rem',
+                          minHeight: '3rem'
+                        }}
                       >
                         {token.symbol} ({token.network})
                       </option>
@@ -448,18 +470,31 @@ export function SwapPanel() {
                       const token = tokens.find(t => t.coin === coin && t.network === network)
                       if (token) setToToken(token)
                     }}
-                    className="w-full bg-background text-foreground border-none outline-none font-semibold cursor-pointer appearance-none"
+                    className="w-full bg-background text-foreground border-none outline-none font-semibold cursor-pointer appearance-none text-xl py-3"
                     style={{
                       backgroundColor: 'transparent',
-                      color: 'inherit'
+                      color: 'inherit',
+                      fontSize: '1.5rem',
+                      paddingTop: '0.75rem',
+                      paddingBottom: '0.75rem',
+                      lineHeight: '1.75rem'
                     }}
                   >
-                    <option value="" className="bg-background text-foreground">Select token</option>
+                    <option value="" className="bg-background text-foreground text-xl py-4" style={{ fontSize: '1.5rem', padding: '1rem' }}>Select token</option>
                     {tokens.map(token => (
                       <option 
                         key={`${token.coin}-${token.network}`} 
                         value={`${token.coin}-${token.network}`}
-                        className="bg-background text-foreground"
+                        className="bg-background text-foreground text-xl py-4"
+                        style={{
+                          paddingTop: '1rem',
+                          paddingBottom: '1rem',
+                          paddingLeft: '1rem',
+                          paddingRight: '1rem',
+                          fontSize: '1.5rem',
+                          lineHeight: '2rem',
+                          minHeight: '3rem'
+                        }}
                       >
                         {token.symbol} ({token.network})
                       </option>
@@ -491,23 +526,33 @@ export function SwapPanel() {
 
           {/* Get Quote Button */}
           {!swapQuote && !activeShift && (
-            <Button
-              onClick={getQuote}
-              disabled={!fromToken || !toToken || !amount || isLoadingQuote || !address}
-              className="w-full h-12 text-lg font-semibold neon-glow"
-            >
-              {isLoadingQuote ? (
-                <>
-                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                  Getting Quote...
-                </>
-              ) : (
-                <>
-                  <TrendingUp className="h-5 w-5 mr-2" />
-                  Get Quote
-                </>
+            <div className="space-y-2">
+              <Button
+                onClick={getQuote}
+                disabled={!fromToken || !toToken || !amount || parseFloat(amount || '0') <= 0 || isLoadingQuote || !address}
+                className="w-full h-12 text-lg font-semibold neon-glow disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isLoadingQuote ? (
+                  <>
+                    <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                    Getting Quote...
+                  </>
+                ) : (
+                  <>
+                    <TrendingUp className="h-5 w-5 mr-2" />
+                    Get Quote
+                  </>
+                )}
+              </Button>
+              {(!fromToken || !toToken || !amount || parseFloat(amount || '0') <= 0 || !address) && (
+                <p className="text-xs text-muted-foreground text-center">
+                  {!fromToken && 'Please select a "From" token. '}
+                  {!toToken && 'Please select a "To" token. '}
+                  {!amount || parseFloat(amount || '0') <= 0 ? 'Please enter an amount greater than 0. ' : ''}
+                  {!address && 'Please connect your wallet.'}
+                </p>
               )}
-            </Button>
+            </div>
           )}
 
           {/* Swap Quote Display */}

@@ -2,18 +2,24 @@ import { getAuthHeaders } from './auth'
 
 // Determine API URL based on environment
 const getApiUrl = () => {
-  // If we're in the browser and on Vercel, use the Render backend
+  // In browser, always use window location to determine
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname
+    // Production deployment
     if (hostname.includes('vercel.app') || hostname.includes('autoxshift')) {
       return process.env.NEXT_PUBLIC_BACKEND_URL || 'https://autoxshift-2-0.onrender.com'
     }
+    // Local development - use explicit env var or default
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+    console.log('[API] Using backend URL:', apiUrl)
+    return apiUrl
   }
-  // Local development or explicit override
+  // Server-side: use env var or default
   return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 }
 
-const API_URL = getApiUrl()
+// Get API URL dynamically (not at module load time)
+const getAPI_URL = () => getApiUrl()
 
 export class ApiError extends Error {
   constructor(
@@ -30,11 +36,17 @@ async function request<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
+  const API_URL = getAPI_URL()
   const url = `${API_URL}${endpoint}`
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     ...getAuthHeaders(),
     ...options.headers,
+  }
+
+  // Debug logging in development
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`[API] ${options.method || 'GET'} ${url}`)
   }
 
   try {

@@ -15,6 +15,7 @@ import {
   Target,
   Activity
 } from 'lucide-react'
+import { aiApi } from '@/lib/api'
 
 interface AIRecommendation {
   id: string
@@ -53,6 +54,14 @@ export function AIRecommendation() {
   const [recommendations, setRecommendations] = useState<AIRecommendation[]>([])
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [analysisProgress, setAnalysisProgress] = useState(0)
+  const [error, setError] = useState<string | null>(null)
+  const [marketInsights, setMarketInsights] = useState<{
+    rateImprovement?: string
+    optimalWindow?: string
+    gasSavings?: string
+  } | null>(null)
+  const [swapExplanation, setSwapExplanation] = useState<string | null>(null)
+  const [isExplaining, setIsExplaining] = useState(false)
 
   useEffect(() => {
     // AI recommendations will be fetched from backend API
@@ -63,23 +72,89 @@ export function AIRecommendation() {
   const handleAnalyze = async () => {
     setIsAnalyzing(true)
     setAnalysisProgress(0)
+    setError(null)
 
-    // Simulate analysis progress
-    const interval = setInterval(() => {
-      setAnalysisProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval)
-          setIsAnalyzing(false)
-          return 100
+    try {
+      // Simulate progress while API call is in progress
+      const progressInterval = setInterval(() => {
+        setAnalysisProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval)
+            return 90
+          }
+          return prev + 10
+        })
+      }, 300)
+
+      // Get popular tokens for analysis (you can customize this list)
+      const tokens = ['BTC', 'ETH', 'USDC', 'USDT', 'SOL', 'MATIC']
+      
+      // Call the AI API
+      const response = await aiApi.analyzeMarket(tokens, '24h')
+      
+      clearInterval(progressInterval)
+      setAnalysisProgress(100)
+
+      if (response.success && response.data) {
+        const analysis = response.data
+        
+        // Set recommendations
+        if (analysis.recommendations && Array.isArray(analysis.recommendations)) {
+          setRecommendations(analysis.recommendations)
         }
-        return prev + 10
-      })
-    }, 200)
+
+        // Update market insights
+        setMarketInsights({
+          rateImprovement: analysis.rateImprovement || '+23%',
+          optimalWindow: analysis.optimalTiming?.bestTime || '15min',
+          gasSavings: analysis.gasSavings || '0.3%'
+        })
+      } else {
+        throw new Error('Failed to get analysis data')
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to analyze market conditions. Please check your API configuration.')
+      console.error('AI analysis error:', err)
+    } finally {
+      setIsAnalyzing(false)
+      setTimeout(() => setAnalysisProgress(0), 1000)
+    }
   }
 
   const handleApplyRecommendation = (recommendation: AIRecommendation) => {
     // In real app, this would apply the recommendation to the swap
     // TODO: Implement recommendation application
+  }
+
+  const handleExplainSwap = async () => {
+    // Get swap data from localStorage (set by SwapPanel when quote is created)
+    const swapDataStr = localStorage.getItem('currentSwapQuote')
+    if (!swapDataStr) {
+      setError('No swap quote available. Please get a quote from the Swap tab first.')
+      return
+    }
+
+    try {
+      setIsExplaining(true)
+      setError(null)
+      setSwapExplanation(null)
+
+      const swapData = JSON.parse(swapDataStr)
+      
+      // Call AI API to explain the swap
+      const response = await aiApi.explainSwap(swapData)
+      
+      if (response.success && response.data) {
+        setSwapExplanation(response.data)
+      } else {
+        throw new Error('Failed to get AI explanation')
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to explain swap. Please check your API configuration.')
+      console.error('AI explanation error:', err)
+    } finally {
+      setIsExplaining(false)
+    }
   }
 
   return (
@@ -137,6 +212,15 @@ export function AIRecommendation() {
                     style={{ width: `${analysisProgress}%` }}
                   />
                 </div>
+              </div>
+            )}
+
+            {error && (
+              <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+                <p className="text-sm text-red-500 flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  {error}
+                </p>
               </div>
             )}
           </div>
@@ -223,15 +307,21 @@ export function AIRecommendation() {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="text-center space-y-2">
-              <div className="text-2xl font-bold text-green-500">+23%</div>
+              <div className="text-2xl font-bold text-green-500">
+                {marketInsights?.rateImprovement || '+23%'}
+              </div>
               <div className="text-sm text-muted-foreground">Rate Improvement</div>
             </div>
             <div className="text-center space-y-2">
-              <div className="text-2xl font-bold text-blue-500">15min</div>
+              <div className="text-2xl font-bold text-blue-500">
+                {marketInsights?.optimalWindow || '15min'}
+              </div>
               <div className="text-sm text-muted-foreground">Optimal Window</div>
             </div>
             <div className="text-center space-y-2">
-              <div className="text-2xl font-bold text-yellow-500">0.3%</div>
+              <div className="text-2xl font-bold text-yellow-500">
+                {marketInsights?.gasSavings || '0.3%'}
+              </div>
               <div className="text-sm text-muted-foreground">Gas Savings</div>
             </div>
           </div>
@@ -253,14 +343,50 @@ export function AIRecommendation() {
           <div className="space-y-4">
             <div className="p-4 rounded-lg bg-muted/50">
               <p className="text-sm text-muted-foreground">
-                <strong>AI Assistant:</strong> Select tokens and get a quote to receive an AI-powered explanation of your swap. 
+                <strong>AI Assistant:</strong> Get a quote from the Swap tab, then click below to receive an AI-powered explanation of your swap. 
                 The AI will analyze the swap details and explain the transaction in simple terms, including exchange rates, 
                 fees, and estimated completion time.
               </p>
             </div>
-            <Button className="w-full" variant="outline">
-              Ask AI About This Swap
+            <Button 
+              className="w-full" 
+              variant="outline"
+              onClick={handleExplainSwap}
+              disabled={isExplaining}
+            >
+              {isExplaining ? (
+                <>
+                  <Brain className="h-4 w-4 mr-2 animate-spin" />
+                  AI is analyzing your swap...
+                </>
+              ) : (
+                <>
+                  <Target className="h-4 w-4 mr-2" />
+                  Ask AI About This Swap
+                </>
+              )}
             </Button>
+
+            {swapExplanation && (
+              <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
+                <div className="flex items-start gap-2">
+                  <Brain className="h-5 w-5 text-primary mt-0.5" />
+                  <div className="flex-1">
+                    <h4 className="font-semibold mb-2 text-primary">AI Explanation</h4>
+                    <p className="text-sm text-foreground whitespace-pre-wrap">{swapExplanation}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {error && !isAnalyzing && (
+              <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+                <p className="text-sm text-red-500 flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  {error}
+                </p>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
