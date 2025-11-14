@@ -312,17 +312,24 @@ class SwapService {
       // Provide helpful error messages
       if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
         throw new Error('Cannot connect to SideShift API. Please check your internet connection and DNS settings.')
-      } else if (error.response?.status === 401 || error.response?.status === 403) {
-        // Access denied or unauthorized
-        const errorMessage = error.response?.data?.message || error.response?.data?.error || 'Access denied'
-        if (errorMessage.includes('Access denied') || errorMessage.includes('access-denied')) {
-          throw new Error('SideShift API access denied. Please verify your API key is correct and has proper permissions. Check: https://sideshift.ai/settings/api')
-        }
-        throw new Error(`SideShift API authentication failed: ${errorMessage}. Please check your SIDESHIFT_SECRET environment variable.`)
       } else if (error.response?.status === 400) {
-        const errorData = error.response.data
+        // Bad Request - could be invalid affiliateId or other validation errors
+        const errorMessage = error.response?.data?.message || error.response?.data?.error?.message || 'Bad request'
+        const errorData = error.response?.data?.error || error.response?.data
+        
+        // Check for invalid affiliateId first
+        if (errorMessage.includes('Invalid') && (errorMessage.includes('affiliateId') || errorMessage.includes('"affiliateId"'))) {
+          logger.error('Invalid affiliateId error:', {
+            affiliateId: this.affiliateId || 'not set',
+            affiliateIdLength: this.affiliateId?.length || 0,
+            errorMessage: errorMessage,
+            rawError: error.response?.data
+          })
+          throw new Error(`Invalid SideShift affiliate ID. Please verify SIDESHIFT_AFFILIATE_ID is set correctly in your environment variables. Get your Account ID from: https://sideshift.ai/account`)
+        }
+        
+        // Handle amount errors
         if (errorData?.error?.message) {
-          // Handle SideShift API error format
           const errorMsg = errorData.error.message
           if (errorMsg.includes('Amount too low') || errorMsg.includes('Minimum')) {
             const minAmount = errorData.error.depositRangeMin || errorData.error.min
@@ -336,9 +343,16 @@ class SwapService {
           }
           throw new Error(errorMsg)
         }
-        throw new Error(errorData?.message || 'Invalid swap parameters')
-      } else if (error.response?.status === 401) {
-        throw new Error('Invalid SideShift API credentials')
+        
+        // Handle other 400 errors
+        throw new Error(`SideShift API error: ${errorMessage}`)
+      } else if (error.response?.status === 401 || error.response?.status === 403) {
+        // Access denied or unauthorized
+        const errorMessage = error.response?.data?.message || error.response?.data?.error || 'Access denied'
+        if (errorMessage.includes('Access denied') || errorMessage.includes('access-denied')) {
+          throw new Error('SideShift API access denied. Please verify your API key is correct and has proper permissions. Check: https://sideshift.ai/settings/api')
+        }
+        throw new Error(`SideShift API authentication failed: ${errorMessage}. Please check your SIDESHIFT_SECRET environment variable.`)
       } else if (error.response?.status === 404) {
         throw new Error('Swap pair not available')
       } else if (error.response?.status === 500) {
@@ -416,20 +430,41 @@ class SwapService {
 
       return this.mapShiftToStatus(shift)
     } catch (error: any) {
-      logger.error('Error creating shift:', error.response?.data || error.message)
+      logger.error('Error creating shift:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+        affiliateId: this.affiliateId || 'not set',
+        affiliateIdLength: this.affiliateId?.length || 0
+      })
       
       // Provide helpful error messages
       if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
         throw new Error('Cannot connect to SideShift API. Please check your internet connection and DNS settings.')
       } else if (error.response?.status === 400) {
-        throw new Error(error.response.data?.message || 'Invalid shift parameters')
-      } else if (error.response?.status === 401) {
-        throw new Error('Invalid SideShift API credentials')
+        const errorMessage = error.response?.data?.message || error.response?.data?.error?.message || 'Bad request'
+        
+        // Check for invalid affiliateId
+        if (errorMessage.includes('Invalid') && (errorMessage.includes('affiliateId') || errorMessage.includes('"affiliateId"'))) {
+          logger.error('Invalid affiliateId error in shift creation:', {
+            affiliateId: this.affiliateId || 'not set',
+            errorMessage: errorMessage
+          })
+          throw new Error(`Invalid SideShift affiliate ID. Please verify SIDESHIFT_AFFILIATE_ID is set correctly in your environment variables. Get your Account ID from: https://sideshift.ai/account`)
+        }
+        
+        throw new Error(`SideShift API error: ${errorMessage}`)
+      } else if (error.response?.status === 401 || error.response?.status === 403) {
+        const errorMessage = error.response?.data?.message || error.response?.data?.error || 'Access denied'
+        if (errorMessage.includes('Access denied') || errorMessage.includes('access-denied')) {
+          throw new Error('SideShift API access denied. Please verify your API key is correct and has proper permissions. Check: https://sideshift.ai/settings/api')
+        }
+        throw new Error(`SideShift API authentication failed: ${errorMessage}`)
       } else if (error.response?.status === 404) {
         throw new Error('Quote not found or expired')
       }
       
-      throw new Error(`Failed to create shift: ${error.response?.data?.message || error.message}`)
+      throw new Error(`Failed to create shift: ${error.response?.data?.message || error.response?.data?.error?.message || error.message}`)
     }
   }
 
