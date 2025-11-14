@@ -7,7 +7,7 @@ const getApiUrl = () => {
     const hostname = window.location.hostname
     // Production deployment - check for Vercel or custom domain
     if (hostname.includes('vercel.app') || hostname.includes('vercel') || hostname.includes('autoxshift')) {
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://autoxshift-2-0.onrender.com'
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://autoxshift-2-0-1.onrender.com'
       console.log('[API] Production mode - Using backend URL:', backendUrl)
       return backendUrl
     }
