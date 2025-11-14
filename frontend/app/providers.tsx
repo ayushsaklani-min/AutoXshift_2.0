@@ -10,6 +10,7 @@ import { WalletConnectConnector } from 'wagmi/connectors/walletConnect'
 import { useState } from 'react'
 
 // Configure Wagmi - Support multiple chains for SideShift cross-chain swaps
+// Updated to fix Vercel build
 const supportedChains = [mainnet, polygon, arbitrum, optimism]
 
 const config = createConfig({
