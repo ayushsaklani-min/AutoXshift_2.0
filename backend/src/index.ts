@@ -28,11 +28,12 @@ if (process.env.NODE_ENV !== 'production') {
   
   if (!result.error) {
     console.log('✅ .env file loaded successfully from:', result.parsed ? Object.keys(result.parsed).length + ' variables' : 'unknown')
-    // Debug: Show if SIDESHIFT_API_KEY is loaded
-    if (process.env.SIDESHIFT_API_KEY) {
-      console.log('✅ SIDESHIFT_API_KEY is loaded (length:', process.env.SIDESHIFT_API_KEY.length + ')')
+    // Debug: Show if SIDESHIFT_SECRET is loaded (official name per docs: https://docs.sideshift.ai/api-intro/getting-started/)
+    const sideshiftSecret = process.env.SIDESHIFT_SECRET || process.env.SIDESHIFT_API_KEY
+    if (sideshiftSecret) {
+      console.log('✅ SIDESHIFT_SECRET is loaded (length:', sideshiftSecret.length + ')')
     } else {
-      console.log('❌ SIDESHIFT_API_KEY is NOT loaded')
+      console.log('❌ SIDESHIFT_SECRET is NOT loaded (check SIDESHIFT_SECRET or SIDESHIFT_API_KEY)')
     }
   } else {
     console.log('❌ Failed to load .env file:', result.error)

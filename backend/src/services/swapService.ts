@@ -1,4 +1,6 @@
 import axios from 'axios'
+import http from 'http'
+import https from 'https'
 import { logger } from '../utils/logger'
 
 // SideShift API base URL
@@ -128,9 +130,11 @@ class SwapService {
     if (this.initialized) return
 
     // Check for API key in multiple possible env variable names
-    this.sideshiftSecret = process.env.SIDESHIFT_API_KEY || 
+    // According to docs: https://docs.sideshift.ai/api-intro/getting-started/
+    // The official env var name is SIDESHIFT_SECRET, but we support alternatives for flexibility
+    this.sideshiftSecret = process.env.SIDESHIFT_SECRET || 
+                          process.env.SIDESHIFT_API_KEY || 
                           process.env.X_SIDESHIFT_SECRET || 
-                          process.env.SIDESHIFT_SECRET || 
                           ''
     this.affiliateId = process.env.SIDESHIFT_AFFILIATE_ID || ''
     
@@ -139,22 +143,37 @@ class SwapService {
     logger.info(`SideShift Affiliate ID: ${this.affiliateId || 'Not set'}`)
     
     // Create axios instance with SideShift API headers
+    // Note: Increased timeout and added DNS resolution settings for production hosting platforms
     this.axiosInstance = axios.create({
       baseURL: SIDESHIFT_API_BASE,
       headers: {
         'Content-Type': 'application/json',
         ...(this.sideshiftSecret && { 'x-sideshift-secret': this.sideshiftSecret })
       },
-      timeout: 30000
+      timeout: 30000,
+      // Add keep-alive for better connection reuse
+      httpAgent: new http.Agent({ 
+        keepAlive: true,
+        keepAliveMsecs: 1000,
+        maxSockets: 10,
+        maxFreeSockets: 5
+      }),
+      httpsAgent: new https.Agent({ 
+        keepAlive: true,
+        keepAliveMsecs: 1000,
+        maxSockets: 10,
+        maxFreeSockets: 5
+      })
     })
 
     if (!this.sideshiftSecret) {
-      logger.error('SideShift API secret not configured. Please set SIDESHIFT_API_KEY in your .env file.')
-      logger.error('Get your API key from: https://sideshift.ai/settings/api')
+      logger.error('SideShift API secret not configured. Please set SIDESHIFT_SECRET in your .env file.')
+      logger.error('Get your Private Key from: https://sideshift.ai/settings/api')
+      logger.error('According to docs: https://docs.sideshift.ai/api-intro/getting-started/')
       logger.error('Current env vars:', {
+        SIDESHIFT_SECRET: process.env.SIDESHIFT_SECRET ? 'set' : 'not set',
         SIDESHIFT_API_KEY: process.env.SIDESHIFT_API_KEY ? 'set' : 'not set',
-        X_SIDESHIFT_SECRET: process.env.X_SIDESHIFT_SECRET ? 'set' : 'not set',
-        SIDESHIFT_SECRET: process.env.SIDESHIFT_SECRET ? 'set' : 'not set'
+        X_SIDESHIFT_SECRET: process.env.X_SIDESHIFT_SECRET ? 'set' : 'not set'
       })
     } else {
       logger.info('✅ SideShift API configured successfully')
@@ -182,7 +201,7 @@ class SwapService {
     this.initialize()
     try {
       if (!this.sideshiftSecret) {
-        throw new Error('SideShift API secret not configured. Please set SIDESHIFT_API_KEY in your .env file.')
+        throw new Error('SideShift API secret not configured. Please set SIDESHIFT_SECRET in your .env file. See: https://docs.sideshift.ai/api-intro/getting-started/')
       }
 
       logger.info(`Getting quote: ${params.amount} ${params.fromToken} (${params.fromNetwork}) → ${params.toToken} (${params.toNetwork})`)
@@ -318,7 +337,7 @@ class SwapService {
     this.initialize()
     try {
       if (!this.sideshiftSecret) {
-        throw new Error('SideShift API secret not configured. Please set SIDESHIFT_API_KEY in your .env file.')
+        throw new Error('SideShift API secret not configured. Please set SIDESHIFT_SECRET in your .env file. See: https://docs.sideshift.ai/api-intro/getting-started/')
       }
 
       logger.info(`Creating shift with quote: ${params.quoteId}`)
@@ -359,7 +378,7 @@ class SwapService {
     this.initialize()
     try {
       if (!this.sideshiftSecret) {
-        throw new Error('SideShift API secret not configured. Please set SIDESHIFT_API_KEY in your .env file.')
+        throw new Error('SideShift API secret not configured. Please set SIDESHIFT_SECRET in your .env file. See: https://docs.sideshift.ai/api-intro/getting-started/')
       }
 
       const response = await this.axiosInstance.get(`/shifts/${shiftId}`)
@@ -373,17 +392,23 @@ class SwapService {
   }
 
   /**
-   * Get available coins/networks from SideShift
+   * Get available coins/networks from SideShift with retry logic
    * @returns List of supported tokens
    */
   async getSupportedTokens(): Promise<TokenInfo[]> {
     this.initialize()
     if (!this.sideshiftSecret) {
-      throw new Error('SideShift API secret not configured. Please set SIDESHIFT_API_KEY in your .env file.')
+      throw new Error('SideShift API secret not configured. Please set SIDESHIFT_SECRET in your .env file. See: https://docs.sideshift.ai/api-intro/getting-started/')
     }
 
-    try {
-      const response = await this.axiosInstance.get('/coins')
+    // Retry logic for DNS/network issues (common on hosting platforms)
+    const maxRetries = 3
+    let lastError: any = null
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        logger.info(`Attempting to fetch tokens from SideShift (attempt ${attempt}/${maxRetries})...`)
+        const response = await this.axiosInstance.get('/coins')
       
       // SideShift API returns: { data: [...coins], Count: number }
       let coins: SideShiftCoin[]
@@ -445,20 +470,42 @@ class SwapService {
         throw new Error('No available tokens found from SideShift API')
       }
 
-      return availableCoins
-    } catch (error: any) {
-      logger.error('Error getting supported tokens:', error.response?.data || error.message)
-      
-      // Provide helpful error messages
-      if (error.code === 'ENOTFOUND') {
-        logger.error('DNS resolution failed for api.sideshift.ai. This may be a network/DNS issue on the hosting platform.')
-        throw new Error('Cannot resolve SideShift API domain. This may be a DNS or network configuration issue. Please contact support or check your hosting platform\'s network settings.')
-      } else if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
-        throw new Error('Cannot connect to SideShift API. Please check your internet connection and DNS settings.')
+        return availableCoins
+      } catch (error: any) {
+        lastError = error
+        logger.warn(`Attempt ${attempt} failed:`, error.code || error.message)
+        
+        // If it's a DNS/network error and we have retries left, wait and retry
+        if ((error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT' || error.code === 'EAI_AGAIN') && attempt < maxRetries) {
+          const waitTime = Math.min(1000 * Math.pow(2, attempt - 1), 5000) // Exponential backoff, max 5s
+          logger.info(`Retrying in ${waitTime}ms...`)
+          await new Promise(resolve => setTimeout(resolve, waitTime))
+          continue
+        }
+        
+        // If it's the last attempt or not a retryable error, throw
+        if (attempt === maxRetries) {
+          logger.error('All retry attempts failed. Error details:', {
+            code: error.code,
+            message: error.message,
+            response: error.response?.data,
+            hostname: error.hostname || 'sideshift.ai'
+          })
+          
+          // Provide helpful error messages
+          if (error.code === 'ENOTFOUND' || error.code === 'EAI_AGAIN') {
+            throw new Error('Cannot resolve SideShift API domain. This may be a DNS or network configuration issue on your hosting platform. Please check Render/Vercel network settings or contact support.')
+          } else if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
+            throw new Error('Cannot connect to SideShift API. Please check your internet connection and DNS settings.')
+          }
+          
+          throw new Error(`Failed to get supported tokens from SideShift after ${maxRetries} attempts: ${error.response?.data?.message || error.message}`)
+        }
       }
-      
-      throw new Error(`Failed to get supported tokens from SideShift: ${error.response?.data?.message || error.message}`)
     }
+    
+    // This should never be reached, but TypeScript needs it
+    throw new Error(`Failed to get supported tokens: ${lastError?.message || 'Unknown error'}`)
   }
 
   /**
