@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useAccount } from 'wagmi'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -12,7 +13,8 @@ import {
   Users, 
   Target,
   Clock,
-  ExternalLink
+  ExternalLink,
+  ArrowLeft
 } from 'lucide-react'
 import { campaignApi } from '@/lib/api'
 import { authenticateWallet, getToken, getUser } from '@/lib/auth'
@@ -34,6 +36,7 @@ interface Campaign {
 
 export default function CampaignsPage() {
   const { address } = useAccount()
+  const router = useRouter()
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [showCreateForm, setShowCreateForm] = useState(false)
@@ -98,11 +101,21 @@ export default function CampaignsPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-4xl font-bold mb-2">Campaigns</h1>
-          <p className="text-muted-foreground">
-            Support causes and fundraise across multiple blockchains
-          </p>
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => router.back()}
+            className="h-10 w-10"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-4xl font-bold mb-2">Campaigns</h1>
+            <p className="text-muted-foreground">
+              Support causes and fundraise across multiple blockchains
+            </p>
+          </div>
         </div>
         {address && (
           <Button onClick={() => setShowCreateForm(!showCreateForm)}>

@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { useAccount } from 'wagmi'
+import { useRouter } from 'next/navigation'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { 
   BarChart3, 
@@ -10,7 +12,8 @@ import {
   Activity,
   DollarSign,
   Zap,
-  Users
+  Users,
+  ArrowLeft
 } from 'lucide-react'
 import { analyticsApi } from '@/lib/api'
 import { authenticateWallet } from '@/lib/auth'
@@ -19,6 +22,7 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, R
 
 export default function AnalyticsPage() {
   const { address } = useAccount()
+  const router = useRouter()
   const [stats, setStats] = useState<any>(null)
   const [swapStats, setSwapStats] = useState<any[]>([])
   const [topTokens, setTopTokens] = useState<any[]>([])
@@ -80,10 +84,22 @@ export default function AnalyticsPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
-        <h1 className="text-4xl font-bold mb-2">Analytics Dashboard</h1>
-        <p className="text-muted-foreground">
-          Track your activity and platform statistics
-        </p>
+        <div className="flex items-center gap-4 mb-4">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => router.back()}
+            className="h-10 w-10"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-4xl font-bold mb-2">Analytics Dashboard</h1>
+            <p className="text-muted-foreground">
+              Track your activity and platform statistics
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Stats Cards */}

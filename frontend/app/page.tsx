@@ -24,39 +24,58 @@ export default function Home() {
     setMounted(true)
   }, [])
 
+  // Show connect wallet screen when not connected
+  if (!isConnected) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center space-y-8">
+          <div className="space-y-4">
+            <h1 className="text-6xl font-bold neon-text animate-fade-in">
+              AutoXShift
+            </h1>
+            <p className="text-xl text-muted-foreground animate-fade-in">
+              AI-Powered Cross-Chain Payment Router
+            </p>
+            <p className="text-lg text-muted-foreground animate-fade-in">
+              Seamless cross-chain token swaps with AI-powered optimization
+            </p>
+          </div>
+          
+          <Card className="w-full max-w-md mx-auto glass-effect animate-fade-in">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Wallet className="h-6 w-6" />
+                Connect Your Wallet
+              </CardTitle>
+              <CardDescription>
+                Connect your wallet to start swapping tokens across multiple blockchains
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {connectors.map((connector) => (
+                <Button
+                  key={connector.id}
+                  onClick={() => connect({ connector })}
+                  className="w-full h-12 text-lg font-semibold neon-glow hover:neon-glow"
+                  variant="outline"
+                >
+                  {mounted ? connector.name : 'Connect Wallet'}
+                </Button>
+              ))}
+              <p className="text-sm text-muted-foreground text-center">
+                Supported networks: Bitcoin, Ethereum, Polygon, Arbitrum, Optimism, and more
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
+  }
+
+  // Show swap interface when connected
   return (
     <div className="min-h-screen">
       <main className="container mx-auto px-4 py-8">
-        {!isConnected && (
-          <Card className="mb-8 glass-effect border-yellow-500/50 bg-yellow-500/10">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <Wallet className="h-6 w-6 text-yellow-500" />
-                  <div>
-                    <p className="font-semibold">Connect Your Wallet</p>
-                    <p className="text-sm text-muted-foreground">
-                      Connect your wallet to start swapping tokens
-                    </p>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  {connectors.map((connector) => (
-                    <Button
-                      key={connector.id}
-                      onClick={() => connect({ connector })}
-                      className="neon-glow hover:neon-glow"
-                      variant="outline"
-                    >
-                      {mounted ? connector.name : 'Connect'}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-        
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-8">
