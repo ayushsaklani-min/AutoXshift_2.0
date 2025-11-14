@@ -146,15 +146,21 @@ class SwapService {
     // Create axios instance with SideShift API headers
     // Note: Increased timeout and added DNS resolution settings for production hosting platforms
     // Use IPv4 family to avoid DNS resolution issues on some hosting platforms (Render, Vercel, etc.)
-    const lookup = (hostname: string, options: dns.LookupOptions, callback: (err: NodeJS.ErrnoException | null, address: string, family: number) => void) => {
+    const lookup = (
+      hostname: string,
+      options: dns.LookupOptions,
+      callback: (err: NodeJS.ErrnoException | null, address: string | dns.LookupAddress[], family?: number) => void
+    ) => {
       // Try IPv4 first (more reliable on hosting platforms)
-      dns.lookup(hostname, { family: 4, ...options }, (err, address, family) => {
+      // Ensure all is false to get single address as string
+      dns.lookup(hostname, { family: 4, all: false, ...options }, (err, address, family) => {
         if (err) {
           logger.warn(`DNS lookup (IPv4) failed for ${hostname}, trying fallback:`, err.message)
           // Fallback: try without family restriction
-          dns.lookup(hostname, options, callback)
+          dns.lookup(hostname, { all: false, ...options }, callback)
         } else {
-          callback(null, address, family || 4)
+          // address will be string when all: false
+          callback(null, address as string, family || 4)
         }
       })
     }
