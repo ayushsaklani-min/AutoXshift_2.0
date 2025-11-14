@@ -189,6 +189,7 @@ class SwapService {
   /**
    * Get swap quote from SideShift API
    * @param params Swap parameters
+   * @param userIp Optional user IP address (required for server-side requests)
    * @returns SideShift quote with deposit address
    */
   async getSwapQuote(params: {
@@ -198,7 +199,7 @@ class SwapService {
     toNetwork: string
     amount: string
     settleAddress: string
-  }): Promise<SwapQuote> {
+  }, userIp?: string): Promise<SwapQuote> {
     this.initialize()
     try {
       if (!this.sideshiftSecret) {
@@ -207,6 +208,15 @@ class SwapService {
 
       logger.info(`Getting quote: ${params.amount} ${params.fromToken} (${params.fromNetwork}) → ${params.toToken} (${params.toNetwork})`)
       logger.info(`SideShift API Key present: ${this.sideshiftSecret ? 'Yes' : 'No'}, Length: ${this.sideshiftSecret?.length || 0}`)
+      if (userIp) {
+        logger.info(`Using user IP for SideShift: ${userIp}`)
+      }
+
+      // Prepare headers - x-user-ip is required for server-side requests
+      const headers: any = {}
+      if (userIp) {
+        headers['x-user-ip'] = userIp
+      }
 
       // Call SideShift API to get quote (POST request according to docs)
       const response = await this.axiosInstance.post('/quotes', {
@@ -216,6 +226,8 @@ class SwapService {
         settleNetwork: params.toNetwork,
         depositAmount: params.amount,
         affiliateId: this.affiliateId || undefined
+      }, {
+        headers
       })
 
       // Handle response - could be direct or wrapped
@@ -344,12 +356,13 @@ class SwapService {
   /**
    * Create a new fixed shift
    * @param params Shift parameters
+   * @param userIp Optional user IP address (required for server-side requests)
    * @returns Created shift with deposit address
    */
   async createShift(params: {
     quoteId: string
     settleAddress: string
-  }): Promise<ShiftStatus> {
+  }, userIp?: string): Promise<ShiftStatus> {
     this.initialize()
     try {
       if (!this.sideshiftSecret) {
@@ -357,11 +370,22 @@ class SwapService {
       }
 
       logger.info(`Creating shift with quote: ${params.quoteId}`)
+      if (userIp) {
+        logger.info(`Using user IP for SideShift: ${userIp}`)
+      }
+
+      // Prepare headers - x-user-ip is required for server-side requests
+      const headers: any = {}
+      if (userIp) {
+        headers['x-user-ip'] = userIp
+      }
 
       const response = await this.axiosInstance.post('/shifts/fixed', {
         quoteId: params.quoteId,
         settleAddress: params.settleAddress,
         affiliateId: this.affiliateId || undefined
+      }, {
+        headers
       })
 
       const shift: SideShiftShift = response.data

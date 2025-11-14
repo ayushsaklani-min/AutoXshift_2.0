@@ -25,6 +25,7 @@ interface DonateParams {
   amount: string
   message?: string
   anonymous?: boolean
+  userIp?: string
 }
 
 class CampaignService {
@@ -174,13 +175,13 @@ class CampaignService {
         toNetwork: campaign.goal_network,
         amount: params.amount,
         settleAddress: campaign.creator_id, // Will need campaign wallet address
-      })
+      }, params.userIp)
 
       // Create shift
       const shift = await swapService.createShift({
         quoteId: quote.quoteId,
         settleAddress: campaign.creator_id,
-      })
+      }, params.userIp)
 
       // Create donation record
       const donationResult = await db.query(

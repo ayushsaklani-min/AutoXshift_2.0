@@ -150,6 +150,18 @@ router.post('/:id/donate', optionalAuth, async (req: any, res: any) => {
       })
     }
 
+    // Extract user IP for SideShift API (required for server-side requests)
+    const getClientIp = (req: any): string => {
+      const forwarded = req.headers['x-forwarded-for']
+      if (forwarded) {
+        const ips = (forwarded as string).split(',')
+        return ips[0].trim()
+      }
+      return req.ip || req.connection?.remoteAddress || req.socket?.remoteAddress || 'unknown'
+    }
+    
+    const userIp = getClientIp(req)
+    
     const result = await campaignService.donate({
       campaignId: req.params.id,
       donorId: req.userId,
@@ -159,6 +171,7 @@ router.post('/:id/donate', optionalAuth, async (req: any, res: any) => {
       amount,
       message,
       anonymous,
+      userIp,
     })
 
     // Track event

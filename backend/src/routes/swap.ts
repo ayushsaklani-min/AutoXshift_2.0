@@ -27,6 +27,20 @@ router.post('/quote', async (req: any, res: any) => {
   try {
     logger.info(`Quote request: ${amount} ${fromToken} (${fromNetwork}) → ${toToken} (${toNetwork})`)
     
+    // Extract user IP for SideShift API (required for server-side requests)
+    // Get real client IP, handling proxies
+    const getClientIp = (req: any): string => {
+      const forwarded = req.headers['x-forwarded-for']
+      if (forwarded) {
+        // x-forwarded-for can contain multiple IPs, take the first one
+        const ips = (forwarded as string).split(',')
+        return ips[0].trim()
+      }
+      return req.ip || req.connection?.remoteAddress || req.socket?.remoteAddress || 'unknown'
+    }
+    
+    const userIp = getClientIp(req)
+    
     const quote = await swapService.getSwapQuote({
       fromToken,
       fromNetwork,
@@ -34,7 +48,7 @@ router.post('/quote', async (req: any, res: any) => {
       toNetwork,
       amount: amount.toString(),
       settleAddress
-    })
+    }, userIp)
     
     res.json({
       success: true,
@@ -70,10 +84,22 @@ router.post('/shift', optionalAuth, async (req: AuthRequest, res: any) => {
 
     logger.info(`Creating shift with quote: ${quoteId}`)
     
+    // Extract user IP for SideShift API (required for server-side requests)
+    const getClientIp = (req: any): string => {
+      const forwarded = req.headers['x-forwarded-for']
+      if (forwarded) {
+        const ips = (forwarded as string).split(',')
+        return ips[0].trim()
+      }
+      return req.ip || req.connection?.remoteAddress || req.socket?.remoteAddress || 'unknown'
+    }
+    
+    const userIp = getClientIp(req)
+    
     const shift = await swapService.createShift({
       quoteId,
       settleAddress
-    })
+    }, userIp)
 
     // Save to database if user is authenticated
     if (req.userId) {
