@@ -206,6 +206,7 @@ class SwapService {
       }
 
       logger.info(`Getting quote: ${params.amount} ${params.fromToken} (${params.fromNetwork}) → ${params.toToken} (${params.toNetwork})`)
+      logger.info(`SideShift API Key present: ${this.sideshiftSecret ? 'Yes' : 'No'}, Length: ${this.sideshiftSecret?.length || 0}`)
 
       // Call SideShift API to get quote (POST request according to docs)
       const response = await this.axiosInstance.post('/quotes', {
@@ -273,11 +274,25 @@ class SwapService {
         maxAmount: quote.depositMax || '0'
       }
     } catch (error: any) {
-      logger.error('Error getting SideShift quote:', error.response?.data || error.message)
+      logger.error('Error getting SideShift quote:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+        headers: error.response?.headers,
+        apiKeyPresent: !!this.sideshiftSecret,
+        apiKeyLength: this.sideshiftSecret?.length || 0
+      })
       
       // Provide helpful error messages
       if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
         throw new Error('Cannot connect to SideShift API. Please check your internet connection and DNS settings.')
+      } else if (error.response?.status === 401 || error.response?.status === 403) {
+        // Access denied or unauthorized
+        const errorMessage = error.response?.data?.message || error.response?.data?.error || 'Access denied'
+        if (errorMessage.includes('Access denied') || errorMessage.includes('access-denied')) {
+          throw new Error('SideShift API access denied. Please verify your API key is correct and has proper permissions. Check: https://sideshift.ai/settings/api')
+        }
+        throw new Error(`SideShift API authentication failed: ${errorMessage}. Please check your SIDESHIFT_SECRET environment variable.`)
       } else if (error.response?.status === 400) {
         const errorData = error.response.data
         if (errorData?.error?.message) {
