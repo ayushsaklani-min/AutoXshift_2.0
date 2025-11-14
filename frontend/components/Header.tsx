@@ -25,7 +25,7 @@ export function Header() {
       <div className="container flex h-16 items-center justify-between">
         {/* Logo */}
         <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-2">
+          <a href="/" className="flex items-center space-x-2 hover:opacity-80 transition-opacity">
             <div className="w-8 h-8 bg-gradient-to-r from-primary to-green-400 rounded-lg flex items-center justify-center">
               <Zap className="h-5 w-5 text-white" />
             </div>
@@ -33,7 +33,7 @@ export function Header() {
               <h1 className="text-xl font-bold neon-text">AutoXShift</h1>
               <p className="text-xs text-muted-foreground">AI-Powered Router</p>
             </div>
-          </div>
+          </a>
         </div>
 
         {/* Navigation */}

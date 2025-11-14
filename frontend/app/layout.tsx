@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import { Providers } from './providers'
+import { Header } from '@/components/Header'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -46,6 +47,7 @@ export default function RootLayout({
           <div className="min-h-screen gradient-bg">
             <div className="cyber-grid fixed inset-0 opacity-20" />
             <div className="relative z-10">
+              <Header />
               {children}
             </div>
           </div>

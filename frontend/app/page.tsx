@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { useAccount, useConnect, useDisconnect } from 'wagmi'
-import { Header } from '@/components/Header'
 import { SwapPanel } from '@/components/SwapPanel'
 import { AIRecommendation } from '@/components/AIRecommendation'
 import { WalletOverview } from '@/components/WalletOverview'
@@ -74,8 +73,6 @@ export default function Home() {
 
   return (
     <div className="min-h-screen">
-      <Header />
-      
       <main className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content */}
