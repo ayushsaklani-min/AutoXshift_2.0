@@ -12,6 +12,9 @@ dist/
 build/
 .next/
 out/
+backend/dist/
+frontend/.next/
+frontend/out/
 
 # Environment variables
 .env
@@ -59,6 +62,5 @@ temp/
 .cache/
 .parcel-cache/
 
-# Vercel (not using)
-vercel.json
+# Vercel
 .vercel/

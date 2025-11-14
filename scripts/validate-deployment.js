@@ -61,11 +61,16 @@ function validateDeployment() {
   // Check root files
   log('📁 Root Configuration:', 'blue');
   allValid &= checkFile('package.json', 'Root package.json');
-  allValid &= checkFile('vercel.json', 'Vercel configuration');
+  allValid &= checkFile('frontend/vercel.json', 'Vercel configuration');
   allValid &= checkFile('render.yaml', 'Render configuration');
   allValid &= checkFile('.gitignore', 'Git ignore file');
-  allValid &= checkFile('.vercelignore', 'Vercel ignore file');
-  allValid &= checkFile('.renderignore', 'Render ignore file');
+  // Optional files (not required)
+  if (fs.existsSync('.vercelignore')) {
+    log('✅ .vercelignore found (optional)', 'green');
+  }
+  if (fs.existsSync('.renderignore')) {
+    log('✅ .renderignore found (optional)', 'green');
+  }
   
   // Check backend files
   log('\n📁 Backend Configuration:', 'blue');
@@ -73,7 +78,10 @@ function validateDeployment() {
   allValid &= checkFile('backend/tsconfig.json', 'Backend TypeScript config');
   allValid &= checkFile('backend/src/index.ts', 'Backend entry point');
   allValid &= checkFile('backend/src/database/schema.sql', 'Database schema');
-  allValid &= checkFile('backend/.npmrc', 'Backend NPM config');
+  // Optional: .npmrc (not required)
+  if (fs.existsSync('backend/.npmrc')) {
+    log('✅ Backend .npmrc found (optional)', 'green');
+  }
   allValid &= checkFile('backend/env.example', 'Backend env example');
   allValid &= checkFile('backend/.env.production.example', 'Backend production env example');
   
@@ -87,7 +95,10 @@ function validateDeployment() {
   allValid &= checkFile('frontend/next.config.js', 'Next.js configuration');
   allValid &= checkFile('frontend/app/layout.tsx', 'Frontend layout');
   allValid &= checkFile('frontend/app/page.tsx', 'Frontend home page');
-  allValid &= checkFile('frontend/.npmrc', 'Frontend NPM config');
+  // Optional: .npmrc (not required)
+  if (fs.existsSync('frontend/.npmrc')) {
+    log('✅ Frontend .npmrc found (optional)', 'green');
+  }
   allValid &= checkFile('frontend/env.local.example', 'Frontend env example');
   allValid &= checkFile('frontend/.env.production.example', 'Frontend production env example');
   
@@ -116,7 +127,7 @@ function validateDeployment() {
   }
   
   try {
-    const vercelJson = JSON.parse(fs.readFileSync('vercel.json', 'utf8'));
+    const vercelJson = JSON.parse(fs.readFileSync('frontend/vercel.json', 'utf8'));
     if (vercelJson.framework === 'nextjs') {
       log('✅ Vercel framework correctly set to nextjs', 'green');
     } else {
@@ -124,7 +135,7 @@ function validateDeployment() {
       allValid = false;
     }
   } catch (error) {
-    log('❌ Error reading vercel.json', 'red');
+    log('❌ Error reading frontend/vercel.json', 'red');
     allValid = false;
   }
   
@@ -150,3 +161,4 @@ function validateDeployment() {
 
 // Run validation
 validateDeployment();
+

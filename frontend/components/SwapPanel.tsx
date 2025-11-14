@@ -154,7 +154,15 @@ export function SwapPanel() {
         } else if (err.data?.error) {
           errorMessage = err.data.error
         }
-        setError(`Cannot load tokens: ${errorMessage}. Please check your internet connection and DNS settings.`)
+        
+        // Provide more specific error messages based on error type
+        if (errorMessage.includes('DNS') || errorMessage.includes('ENOTFOUND') || errorMessage.includes('resolve')) {
+          errorMessage = 'DNS resolution failed. The backend cannot reach SideShift API. This may be a hosting platform network configuration issue.'
+        } else if (errorMessage.includes('Network error') || errorMessage.includes('fetch')) {
+          errorMessage = 'Cannot connect to backend API. Please check if the backend is running and accessible.'
+        }
+        
+        setError(`Cannot load tokens: ${errorMessage}`)
         setTokens([]) // Clear tokens on error
       } finally {
         setIsLoading(false)

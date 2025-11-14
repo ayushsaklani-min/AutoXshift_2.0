@@ -5,16 +5,21 @@ const getApiUrl = () => {
   // In browser, always use window location to determine
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname
-    // Production deployment
-    if (hostname.includes('vercel.app') || hostname.includes('autoxshift')) {
-      return process.env.NEXT_PUBLIC_BACKEND_URL || 'https://autoxshift-2-0.onrender.com'
+    // Production deployment - check for Vercel or custom domain
+    if (hostname.includes('vercel.app') || hostname.includes('vercel') || hostname.includes('autoxshift')) {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://autoxshift-2-0.onrender.com'
+      console.log('[API] Production mode - Using backend URL:', backendUrl)
+      return backendUrl
     }
     // Local development - use explicit env var or default
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-    console.log('[API] Using backend URL:', apiUrl)
+    console.log('[API] Development mode - Using backend URL:', apiUrl)
     return apiUrl
   }
-  // Server-side: use env var or default
+  // Server-side: prefer BACKEND_URL for production, fallback to API_URL
+  if (process.env.NEXT_PUBLIC_BACKEND_URL) {
+    return process.env.NEXT_PUBLIC_BACKEND_URL
+  }
   return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 }
 
@@ -85,10 +90,11 @@ async function request<T>(
     }
     // Handle network errors
     if (error instanceof TypeError && error.message.includes('fetch')) {
+      const apiUrl = getAPI_URL()
       throw new ApiError(
-        'Network error: Unable to connect to the server. Please check your connection and API URL.',
+        `Network error: Unable to connect to the server at ${apiUrl}. Please check your connection and DNS settings.`,
         0,
-        { originalError: error.message }
+        { originalError: error.message, apiUrl }
       )
     }
     throw error

@@ -1,11 +1,12 @@
 import axios from 'axios'
 import http from 'http'
 import https from 'https'
+import dns from 'dns'
 import { logger } from '../utils/logger'
 
 // SideShift API base URL
-// According to SideShift.ai documentation: https://docs.sideshift.ai/
-// The correct base URL is https://sideshift.ai/api/v2/
+// According to SideShift.ai documentation: https://docs.sideshift.ai/api-intro/getting-started/
+// The correct base URL is https://sideshift.ai/api/v2 (no trailing slash)
 const SIDESHIFT_API_BASE = process.env.SIDESHIFT_API_URL || 'https://sideshift.ai/api/v2'
 
 // SideShift API interfaces
@@ -144,6 +145,20 @@ class SwapService {
     
     // Create axios instance with SideShift API headers
     // Note: Increased timeout and added DNS resolution settings for production hosting platforms
+    // Use IPv4 family to avoid DNS resolution issues on some hosting platforms (Render, Vercel, etc.)
+    const lookup = (hostname: string, options: dns.LookupOptions, callback: (err: NodeJS.ErrnoException | null, address: string, family: number) => void) => {
+      // Try IPv4 first (more reliable on hosting platforms)
+      dns.lookup(hostname, { family: 4, ...options }, (err, address, family) => {
+        if (err) {
+          logger.warn(`DNS lookup (IPv4) failed for ${hostname}, trying fallback:`, err.message)
+          // Fallback: try without family restriction
+          dns.lookup(hostname, options, callback)
+        } else {
+          callback(null, address, family || 4)
+        }
+      })
+    }
+
     this.axiosInstance = axios.create({
       baseURL: SIDESHIFT_API_BASE,
       headers: {
@@ -151,18 +166,20 @@ class SwapService {
         ...(this.sideshiftSecret && { 'x-sideshift-secret': this.sideshiftSecret })
       },
       timeout: 30000,
-      // Add keep-alive for better connection reuse
+      // Add keep-alive for better connection reuse and custom DNS lookup
       httpAgent: new http.Agent({ 
         keepAlive: true,
         keepAliveMsecs: 1000,
         maxSockets: 10,
-        maxFreeSockets: 5
+        maxFreeSockets: 5,
+        lookup: lookup as any
       }),
       httpsAgent: new https.Agent({ 
         keepAlive: true,
         keepAliveMsecs: 1000,
         maxSockets: 10,
-        maxFreeSockets: 5
+        maxFreeSockets: 5,
+        lookup: lookup as any
       })
     })
 
