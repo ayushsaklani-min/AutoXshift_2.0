@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useAccount, useDisconnect } from 'wagmi'
+import { usePathname } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { 
@@ -18,7 +19,9 @@ import { formatAddress } from '@/lib/utils'
 export function Header() {
   const { address } = useAccount()
   const { disconnect } = useDisconnect()
+  const pathname = usePathname()
   const [isDarkMode, setIsDarkMode] = useState(true)
+  const isHomePage = pathname === '/'
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -36,21 +39,23 @@ export function Header() {
           </a>
         </div>
 
-        {/* Navigation */}
-        <nav className="hidden md:flex items-center space-x-6">
-          <a href="/" className="text-sm font-medium hover:text-primary transition-colors">
-            Swap
-          </a>
-          <a href="/campaigns" className="text-sm font-medium hover:text-primary transition-colors">
-            Campaigns
-          </a>
-          <a href="/portfolio" className="text-sm font-medium hover:text-primary transition-colors">
-            Portfolio
-          </a>
-          <a href="/analytics" className="text-sm font-medium hover:text-primary transition-colors">
-            Analytics
-          </a>
-        </nav>
+        {/* Navigation - Hidden on home page */}
+        {!isHomePage && (
+          <nav className="hidden md:flex items-center space-x-6">
+            <a href="/" className="text-sm font-medium hover:text-primary transition-colors">
+              Swap
+            </a>
+            <a href="/campaigns" className="text-sm font-medium hover:text-primary transition-colors">
+              Campaigns
+            </a>
+            <a href="/portfolio" className="text-sm font-medium hover:text-primary transition-colors">
+              Portfolio
+            </a>
+            <a href="/analytics" className="text-sm font-medium hover:text-primary transition-colors">
+              Analytics
+            </a>
+          </nav>
+        )}
 
         {/* Right side */}
         <div className="flex items-center space-x-4">
