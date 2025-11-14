@@ -2,25 +2,28 @@ import axios from 'axios'
 import { logger } from '../utils/logger'
 
 // SideShift API base URL
-// Try multiple possible endpoints
-const SIDESHIFT_API_BASE = process.env.SIDESHIFT_API_URL || 'https://api.sideshift.ai/v2'
+// According to SideShift.ai documentation: https://docs.sideshift.ai/
+// The correct base URL is https://sideshift.ai/api/v2/
+const SIDESHIFT_API_BASE = process.env.SIDESHIFT_API_URL || 'https://sideshift.ai/api/v2'
 
 // SideShift API interfaces
 interface SideShiftQuote {
-  quoteId: string
+  id?: string  // v2 API uses 'id'
+  quoteId?: string  // v1 API uses 'quoteId'
   depositCoin: string
   depositNetwork: string
   settleCoin: string
   settleNetwork: string
-  depositAmount: string
-  settleAmount: string
-  rate: string
-  fee: string
-  depositMin: string
-  depositMax: string
-  settleMin: string
-  settleMax: string
+  depositAmount?: string
+  settleAmount?: string
+  rate?: string
+  fee?: string
+  depositMin?: string
+  depositMax?: string
+  settleMin?: string
+  settleMax?: string
   expiresAt: string
+  createdAt?: string
 }
 
 interface SideShiftShift {
@@ -46,13 +49,24 @@ interface SideShiftShift {
 
 interface SideShiftCoin {
   coin: string
-  network: string
+  networks: string[]
   name: string
-  symbol: string
-  status: 'available' | 'unavailable'
-  min: string
-  max: string
-  decimals: number
+  mainnet?: string
+  tokenDetails?: {
+    [network: string]: {
+      contractAddress: string
+      decimals: number
+    }
+  }
+  depositOffline?: boolean
+  settleOffline?: boolean
+  fixedOnly?: boolean
+  variableOnly?: boolean | string[]
+}
+
+interface SideShiftCoinsResponse {
+  data: SideShiftCoin[]
+  Count: number
 }
 
 // Our application interfaces
@@ -173,43 +187,70 @@ class SwapService {
 
       logger.info(`Getting quote: ${params.amount} ${params.fromToken} (${params.fromNetwork}) → ${params.toToken} (${params.toNetwork})`)
 
-      // Call SideShift API to get quote
-      const response = await this.axiosInstance.get('/quotes', {
-        params: {
-          depositCoin: params.fromToken,
-          depositNetwork: params.fromNetwork,
-          settleCoin: params.toToken,
-          settleNetwork: params.toNetwork,
-          depositAmount: params.amount,
-          affiliateId: this.affiliateId || undefined
-        }
-      })
-
-      const quote: SideShiftQuote = response.data
-
-      // Create fixed shift to get deposit address
-      const shiftResponse = await this.axiosInstance.post('/shifts/fixed', {
-        quoteId: quote.quoteId,
-        settleAddress: params.settleAddress,
+      // Call SideShift API to get quote (POST request according to docs)
+      const response = await this.axiosInstance.post('/quotes', {
+        depositCoin: params.fromToken,
+        depositNetwork: params.fromNetwork,
+        settleCoin: params.toToken,
+        settleNetwork: params.toNetwork,
+        depositAmount: params.amount,
         affiliateId: this.affiliateId || undefined
       })
 
-      const shift: SideShiftShift = shiftResponse.data
+      // Handle response - could be direct or wrapped
+      let quoteData: any
+      if (response.data && (response.data.id || response.data.quoteId || response.data.depositCoin)) {
+        quoteData = response.data
+      } else if (response.data && response.data.data && (response.data.data.id || response.data.data.quoteId)) {
+        quoteData = response.data.data
+      } else {
+        logger.error('Unexpected quote response structure:', JSON.stringify(response.data).substring(0, 500))
+        throw new Error('Invalid response format from SideShift API')
+      }
 
+      // Extract quote ID (v2 uses 'id', v1 uses 'quoteId')
+      const quoteId = quoteData.id || quoteData.quoteId
+      if (!quoteId) {
+        logger.error('Quote response missing ID:', JSON.stringify(quoteData).substring(0, 500))
+        throw new Error('Quote response missing ID field')
+      }
+
+      // SideShift v2 quote response may not include all fields immediately
+      // We need to use the quoteId to get full quote details or use what's available
+      const quote: SideShiftQuote = {
+        id: quoteData.id,
+        quoteId: quoteId,
+        depositCoin: quoteData.depositCoin,
+        depositNetwork: quoteData.depositNetwork,
+        settleCoin: quoteData.settleCoin,
+        settleNetwork: quoteData.settleNetwork,
+        depositAmount: quoteData.depositAmount || params.amount, // Use requested amount if not in response
+        settleAmount: quoteData.settleAmount || '0', // Will be updated when shift is created
+        rate: quoteData.rate || '0',
+        fee: quoteData.fee || '0',
+        depositMin: quoteData.depositMin || quoteData.depositRangeMin || '0',
+        depositMax: quoteData.depositMax || quoteData.depositRangeMax || '0',
+        settleMin: quoteData.settleMin || '0',
+        settleMax: quoteData.settleMax || '0',
+        expiresAt: quoteData.expiresAt,
+        createdAt: quoteData.createdAt
+      }
+
+      // Return quote without creating shift - shift creation is separate
       return {
-        quoteId: quote.quoteId,
+        quoteId: quoteId,
         fromToken: quote.depositCoin,
         fromNetwork: quote.depositNetwork,
         toToken: quote.settleCoin,
         toNetwork: quote.settleNetwork,
-        amountIn: quote.depositAmount,
-        amountOut: quote.settleAmount,
-        rate: quote.rate,
-        fee: quote.fee,
-        depositAddress: shift.depositAddress,
+        amountIn: quote.depositAmount || params.amount,
+        amountOut: quote.settleAmount || '0', // Will be calculated when shift is created
+        rate: quote.rate || '0',
+        fee: quote.fee || '0',
+        depositAddress: undefined, // Will be provided when shift is created
         expiresAt: new Date(quote.expiresAt).getTime(),
-        minAmount: quote.depositMin,
-        maxAmount: quote.depositMax
+        minAmount: quote.depositMin || '0',
+        maxAmount: quote.depositMax || '0'
       }
     } catch (error: any) {
       logger.error('Error getting SideShift quote:', error.response?.data || error.message)
@@ -218,16 +259,50 @@ class SwapService {
       if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
         throw new Error('Cannot connect to SideShift API. Please check your internet connection and DNS settings.')
       } else if (error.response?.status === 400) {
-        throw new Error(error.response.data?.message || 'Invalid swap parameters')
+        const errorData = error.response.data
+        if (errorData?.error?.message) {
+          // Handle SideShift API error format
+          const errorMsg = errorData.error.message
+          if (errorMsg.includes('Amount too low') || errorMsg.includes('Minimum')) {
+            const minAmount = errorData.error.depositRangeMin || errorData.error.min
+            const maxAmount = errorData.error.depositRangeMax || errorData.error.max
+            throw new Error(`Amount too low. Minimum: ${minAmount} ${params.fromToken}. Maximum: ${maxAmount} ${params.fromToken}`)
+          }
+          if (errorMsg.includes('Amount too high') || errorMsg.includes('Maximum')) {
+            const minAmount = errorData.error.depositRangeMin || errorData.error.min
+            const maxAmount = errorData.error.depositRangeMax || errorData.error.max
+            throw new Error(`Amount too high. Minimum: ${minAmount} ${params.fromToken}. Maximum: ${maxAmount} ${params.fromToken}`)
+          }
+          throw new Error(errorMsg)
+        }
+        throw new Error(errorData?.message || 'Invalid swap parameters')
       } else if (error.response?.status === 401) {
         throw new Error('Invalid SideShift API credentials')
       } else if (error.response?.status === 404) {
         throw new Error('Swap pair not available')
+      } else if (error.response?.status === 500) {
+        // Handle 500 errors that might contain useful error info
+        const errorData = error.response.data
+        if (errorData?.error?.message) {
+          const errorMsg = errorData.error.message
+          if (errorMsg.includes('Amount too low') || errorMsg.includes('Minimum')) {
+            const minAmount = errorData.error.depositRangeMin || errorData.error.min
+            const maxAmount = errorData.error.depositRangeMax || errorData.error.max
+            throw new Error(`Amount too low. Minimum: ${minAmount} ${params.fromToken}. Maximum: ${maxAmount} ${params.fromToken}`)
+          }
+          if (errorMsg.includes('Amount too high') || errorMsg.includes('Maximum')) {
+            const minAmount = errorData.error.depositRangeMin || errorData.error.min
+            const maxAmount = errorData.error.depositRangeMax || errorData.error.max
+            throw new Error(`Amount too high. Minimum: ${minAmount} ${params.fromToken}. Maximum: ${maxAmount} ${params.fromToken}`)
+          }
+          throw new Error(errorMsg)
+        }
+        throw new Error('SideShift API error. Please try again or check the swap parameters.')
       } else if (error.code === 'ECONNABORTED') {
         throw new Error('Request timeout - please try again')
       }
       
-      throw new Error(`Failed to get swap quote: ${error.response?.data?.message || error.message}`)
+      throw new Error(`Failed to get swap quote: ${error.response?.data?.message || error.response?.data?.error?.message || error.message}`)
     }
   }
 
@@ -309,25 +384,62 @@ class SwapService {
 
     try {
       const response = await this.axiosInstance.get('/coins')
-      const coins: SideShiftCoin[] = response.data
-
-      if (!Array.isArray(coins)) {
-        throw new Error('Invalid response from SideShift API')
+      
+      // SideShift API returns: { data: [...coins], Count: number }
+      let coins: SideShiftCoin[]
+      if (response.data && Array.isArray(response.data)) {
+        // Direct array response
+        coins = response.data
+      } else if (response.data && response.data.data && Array.isArray(response.data.data)) {
+        // Wrapped response: { data: [...], Count: ... }
+        coins = response.data.data
+      } else {
+        logger.error('Unexpected response structure:', JSON.stringify(response.data).substring(0, 200))
+        throw new Error('Invalid response format from SideShift API')
       }
 
-      // Filter only available coins and map to our format
-      const availableCoins = coins
-        .filter(coin => coin.status === 'available')
-        .map(coin => ({
-          coin: coin.coin,
-          network: coin.network,
-          name: coin.name,
-          symbol: coin.symbol,
-          status: coin.status,
-          min: coin.min,
-          max: coin.max,
-          decimals: coin.decimals
-        }))
+      if (!Array.isArray(coins) || coins.length === 0) {
+        throw new Error('No coins returned from SideShift API')
+      }
+
+      // Flatten coins: create one entry per coin-network combination
+      const availableCoins: TokenInfo[] = []
+      
+      for (const coin of coins) {
+        // Skip coins that are offline or restricted
+        if (coin.depositOffline && coin.settleOffline) {
+          continue
+        }
+        
+        // Process each network for this coin
+        for (const network of coin.networks || []) {
+          // Skip if this network is variable-only and coin is fixed-only (or vice versa)
+          if (coin.fixedOnly && Array.isArray(coin.variableOnly) && coin.variableOnly.includes(network)) {
+            continue
+          }
+          if (coin.variableOnly === true && !coin.fixedOnly) {
+            // Variable only coins might need special handling, but include them for now
+          }
+          
+          // Get decimals from tokenDetails or use defaults
+          const tokenDetail = coin.tokenDetails?.[network]
+          const decimals = tokenDetail?.decimals || 18 // Default to 18 for most tokens
+          
+          // Use coin symbol as symbol (or coin name if no symbol)
+          const symbol = coin.coin
+          
+          availableCoins.push({
+            coin: coin.coin,
+            network: network,
+            name: coin.name,
+            symbol: symbol,
+            status: 'available', // All coins in the response are available
+            min: '0.0001', // Default min - actual min/max will be validated by quote endpoint
+            max: '1000000', // Default max - actual min/max will be validated by quote endpoint
+            decimals: decimals
+          })
+        }
+      }
 
       if (availableCoins.length === 0) {
         throw new Error('No available tokens found from SideShift API')
